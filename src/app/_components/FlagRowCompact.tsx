@@ -1,9 +1,11 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronRight, Hand, PackageOpen, PauseCircle, ShoppingCart, Sparkles, TrendingUp, X } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, Check, ChevronRight, Hand, Lock, Loader2, PackageOpen, PauseCircle, ShoppingCart, Sparkles, TrendingUp, X } from "lucide-react";
+import { useState, useTransition } from "react";
 import type { FlagRow } from "@/lib/dashboard";
+import { parseQuantity } from "@/lib/quantity";
 import { REJECTION_LABELS, REJECTION_REASONS } from "@/lib/rejectionReasons";
+import { setQuantityAction } from "../actions";
 import { CoverMeter } from "./CoverMeter";
 import { DecisionButtons } from "./DecisionButtons";
 import { Sparkline } from "./Sparkline";
@@ -25,10 +27,29 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: 
  */
 export function FlagRowCompact({ r, festivalPct, mode = "decide", showRun = false }: { r: FlagRow; festivalPct: number; mode?: "decide" | "decided"; showRun?: boolean }) {
   const [open, setOpen] = useState(false);
+  // What is typed in the quantity box. null = show the saved number.
+  const [typed, setTyped] = useState<string | null>(null);
+  const [saving, startSave] = useTransition();
+  const [qtyError, setQtyError] = useState<string | null>(null);
   const m = r.metrics;
   const reasons = REJECTION_REASONS.map((value) => ({ value, label: REJECTION_LABELS[value] }));
   const canDecide = mode === "decide" && r.status === "PENDING" && r.action !== "NEEDS_RAGHAV";
   const change = m.demandChange === null ? null : m.demandChange * 100;
+  // The planner can change an order's quantity while it is waiting, and after approval until a draft PO carries it.
+  const qtyEditable = r.action === "ORDER_NOW" && (r.status === "PENDING" ? mode === "decide" : r.status === "APPROVED" && !r.inPo);
+  const qtyText = typed ?? String(r.quantity ?? "");
+  const qtyCheck = parseQuantity(qtyText);
+  const qtyChanged = qtyEditable && qtyCheck.ok && qtyCheck.value !== r.quantity;
+  const recommended = r.recommendedQuantity;
+  const saveQty = () => {
+    if (!qtyCheck.ok) return setQtyError(qtyCheck.error);
+    setQtyError(null);
+    startSave(async () => {
+      const res = await setQuantityAction(r.id, qtyCheck.value);
+      if (!res.ok) setQtyError(res.message);
+      else setTyped(null);
+    });
+  };
   const hasCover = m.cover !== null && m.minCover !== null && m.maxCover !== null;
 
   return (
@@ -48,7 +69,46 @@ export function FlagRowCompact({ r, festivalPct, mode = "decide", showRun = fals
         </div>
 
         <div className="fcell fcell-action">
-          {r.action === "ORDER_NOW" && <span className="chip order"><ShoppingCart size={14} /> Order {r.quantity}</span>}
+          {r.action === "ORDER_NOW" && qtyEditable && (
+            <div className="qty-wrap">
+              <label className={`chip order qty-chip ${typed !== null && qtyText !== String(r.quantity) ? "changed" : ""}`}>
+                <ShoppingCart size={14} /> Order
+                <input
+                  className="qty-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  value={qtyText}
+                  disabled={saving}
+                  aria-label={`Order quantity for ${r.skuName}`}
+                  onChange={(e) => {
+                    setTyped(e.target.value);
+                    setQtyError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && r.status === "APPROVED") saveQty();
+                    if (e.key === "Escape") {
+                      setTyped(null);
+                      setQtyError(null);
+                    }
+                  }}
+                />
+              </label>
+              {r.status === "APPROVED" && qtyChanged && (
+                <button className="qty-save" disabled={saving} onClick={saveQty}>{saving ? <Loader2 size={13} className="spin" /> : <Check size={13} strokeWidth={3} />} Save</button>
+              )}
+              {(r.edited || qtyChanged) && recommended !== null && <div className="qty-note">Recommended {recommended.toLocaleString("en-IN")}</div>}
+              {qtyError && <div className="error">{qtyError}</div>}
+            </div>
+          )}
+          {r.action === "ORDER_NOW" && !qtyEditable && (
+            <div className="qty-wrap">
+              <span className="chip order"><ShoppingCart size={14} /> Order {r.quantity}{r.inPo && <Lock size={12} aria-label="In a draft PO" />}</span>
+              {r.edited && recommended !== null && <div className="qty-note">Edited · recommended {recommended.toLocaleString("en-IN")}</div>}
+              {r.inPo && <div className="qty-note">In a draft PO</div>}
+            </div>
+          )}
           {r.action === "PAUSE_ORDER" && <span className="chip pause"><PauseCircle size={14} /> Pause order</span>}
           {r.action === "NEEDS_RAGHAV" && <span className="chip hand"><Hand size={14} /> Your judgment</span>}
           {(r.reviewRequired || r.aiNeedsRaghav || r.dataIssues.length > 0) && (
@@ -73,8 +133,8 @@ export function FlagRowCompact({ r, festivalPct, mode = "decide", showRun = fals
         </div>
 
         <div className="fcell fcell-decision">
-          {canDecide && <DecisionButtons id={r.id} reasons={reasons} />}
-          {r.status === "APPROVED" && <span className="chip ok"><Check size={14} strokeWidth={3} /> Approved</span>}
+          {canDecide && <DecisionButtons id={r.id} reasons={reasons} order={r.action === "ORDER_NOW" ? { text: qtyText, recommended } : undefined} />}
+          {r.status === "APPROVED" && <span className="chip ok"><Check size={14} strokeWidth={3} /> Approved{r.edited ? " · edited" : ""}</span>}
           {r.status === "REJECTED" && (
             <div className="decided-info">
               <span className="chip bad"><X size={14} strokeWidth={3} /> Rejected</span>

@@ -10,7 +10,14 @@ export interface FlagRow {
   category: string;
   flags: string[];
   action: "ORDER_NOW" | "PAUSE_ORDER" | "NEEDS_RAGHAV";
+  /** What will be ordered: the planner's number if they changed it, otherwise the recommendation. */
   quantity: number | null;
+  /** What the rules recommended. */
+  recommendedQuantity: number | null;
+  /** The planner changed the quantity. */
+  edited: boolean;
+  /** A draft PO already carries this line, so its quantity is locked. */
+  inPo: boolean;
   reviewRequired: boolean;
   needsRaghavReason: string | null;
   metrics: Metrics;
@@ -48,6 +55,9 @@ function toRows(recs: Rec[]): FlagRow[] {
     flags: r.flags as string[],
     action: r.action as FlagRow["action"],
     quantity: r.quantity as number | null,
+    recommendedQuantity: r.recommended_quantity as number | null,
+    edited: r.edited as boolean,
+    inPo: r.draft_po_id !== null,
     reviewRequired: r.review_required as boolean,
     needsRaghavReason: r.needs_raghav_reason as string | null,
     metrics: r.metrics as Metrics,
@@ -79,12 +89,14 @@ export async function getDashboardData(windowStart: Date): Promise<DashboardData
     runs.length === 0
       ? Promise.resolve([] as Rec[])
       : sql`SELECT r.id, r.run_id, r.sku_id, coalesce(m.sku_name, r.sku_id) AS sku_name, coalesce(m.category, '') AS category,
-          r.flags, r.action, r.quantity, r.review_required, r.needs_raghav_reason, r.metrics, r.data_issues,
+          r.flags, r.action, coalesce(r.approved_quantity, r.quantity) AS quantity, r.quantity AS recommended_quantity,
+          (r.approved_quantity IS NOT NULL) AS edited, r.draft_po_id, r.review_required, r.needs_raghav_reason, r.metrics, r.data_issues,
           r.reason, r.ai_needs_raghav, r.ai_triage_reason, r.status, r.rejection_reason, r.decided_at
         FROM recommendations r LEFT JOIN sku_master m ON m.sku_id = r.sku_id
         WHERE r.run_id = ${runs[0].id} AND r.status <> 'SUPERSEDED'`,
     sql`SELECT r.id, r.run_id, r.sku_id, coalesce(m.sku_name, r.sku_id) AS sku_name, coalesce(m.category, '') AS category,
-          r.flags, r.action, r.quantity, r.review_required, r.needs_raghav_reason, r.metrics, r.data_issues,
+          r.flags, r.action, coalesce(r.approved_quantity, r.quantity) AS quantity, r.quantity AS recommended_quantity,
+          (r.approved_quantity IS NOT NULL) AS edited, r.draft_po_id, r.review_required, r.needs_raghav_reason, r.metrics, r.data_issues,
           r.reason, r.ai_needs_raghav, r.ai_triage_reason, r.status, r.rejection_reason, r.decided_at
         FROM recommendations r LEFT JOIN sku_master m ON m.sku_id = r.sku_id
         WHERE r.status IN ('APPROVED', 'REJECTED') AND r.action <> 'NEEDS_RAGHAV' AND r.decided_at >= ${windowStart.toISOString()}

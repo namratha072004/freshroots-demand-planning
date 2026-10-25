@@ -99,6 +99,18 @@ The dashboard is split so no single page is crowded. The **Overview** is one scr
 
 Each flag is a one-line row (product, action, stock cover, weekly sales, decision). Click a row to open its charts, flags and the AI reason. All pages refresh after a decision, run or settings change.
 
+## Changing the order quantity (human in the loop)
+
+The rules recommend a quantity, and the planner has the last word. On any ORDER_NOW row the quantity is an editable box (shown as "Order [750]"). Change it and press **Approve** to approve a different number, for example 300 instead of 750. The row then shows "Recommended 750" beside your number.
+
+- You can also change the quantity **after approving**, until a draft PO is created (type the new number and press Save or Enter). Once a draft PO carries the line it is locked, because Zoho already has that number.
+- The rules' recommendation is never overwritten: `recommendations.quantity` keeps it, `approved_quantity` holds the planner's number, and every change is logged in `quantity_audit` (old and new value, time).
+- The draft PO, the Proposed order quantity card, the orders page and "What to do next" all use the planner's number.
+- Checks: a whole number from 1 to 1,000,000; 0 is refused (reject the flag instead to order nothing); an order of more than twice the recommendation asks for a second confirmation; only orders have a quantity (not pause orders).
+- An approval with an edited quantity still counts as an approval in the kill switch.
+- The AI's written reason keeps the quantity the rules recommended, so it can differ from an edited order; the row shows both.
+- `npx tsx scripts/check-quantity-edit.ts` checks this against the database using temporary rows that it removes (it never touches real flags).
+
 ## Colour themes
 
 Five themes (Forest, Ocean, Grape, Rose, Graphite) and Light / Dark / Match my device, from the palette button in the header or the Settings page. The choice is kept in a cookie so the server renders it with no flash. Every text/background pair was checked for contrast in all ten theme-and-mode combinations; the status colours (order, pause, approved, rejected) are the same in every theme on purpose.

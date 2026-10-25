@@ -4,7 +4,7 @@ import { orderTotals, parseView, pickRows, reasonBreakdown, viewCounts } from "@
 
 let id = 0;
 const row = (over: Partial<FlagRow>): FlagRow => ({
-  id: ++id, runId: 5, skuId: `SKU${id}`, skuName: "n", category: "c", flags: [], action: "ORDER_NOW", quantity: 100, reviewRequired: false,
+  id: ++id, runId: 5, skuId: `SKU${id}`, skuName: "n", category: "c", flags: [], action: "ORDER_NOW", quantity: 100, recommendedQuantity: 100, edited: false, inPo: false, reviewRequired: false,
   needsRaghavReason: null, metrics: {} as never, dataIssues: [], reason: null, weekly: [], aiNeedsRaghav: null, aiTriageReason: null,
   status: "PENDING", rejectionReason: null, decidedAt: null, ...over,
 });

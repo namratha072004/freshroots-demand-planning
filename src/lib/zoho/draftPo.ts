@@ -25,8 +25,8 @@ export type CreateResult =
 /** Approved ORDER_NOW lines that are not in a draft PO yet. */
 export async function getReadyBatch(): Promise<Batch | null> {
   const sql = getSql();
-  const rows = await sql`SELECT id, sku_id, quantity, decided_at FROM recommendations
-    WHERE status = 'APPROVED' AND action = 'ORDER_NOW' AND draft_po_id IS NULL AND quantity IS NOT NULL`;
+  const rows = await sql`SELECT id, sku_id, coalesce(approved_quantity, quantity) AS quantity, decided_at FROM recommendations
+    WHERE status = 'APPROVED' AND action = 'ORDER_NOW' AND draft_po_id IS NULL AND coalesce(approved_quantity, quantity) IS NOT NULL`;
   return buildBatch(
     rows.map((r) => ({
       recommendationId: Number(r.id),

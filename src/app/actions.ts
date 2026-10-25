@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSql } from "@/lib/db";
 import { createSessionToken, isValidSessionToken, passwordAccepted, SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
-import { approveRecommendation, rejectRecommendation } from "@/lib/decisions";
+import { approveRecommendation, rejectRecommendation, setApprovedQuantity } from "@/lib/decisions";
 import { runPlanning } from "@/lib/run";
 import { markLead } from "@/lib/leads";
 import { resetGroup, saveEdits, setPoDryRun, type SettingGroup } from "@/lib/settings";
@@ -43,10 +43,10 @@ export async function logout() {
   redirect("/login");
 }
 
-export async function approve(id: number): Promise<ActionResult> {
+export async function approve(id: number, quantity?: number): Promise<ActionResult> {
   await requireAuth();
   try {
-    await approveRecommendation(id);
+    await approveRecommendation(id, quantity);
     await evaluateAndLatch();
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Could not approve" };
@@ -164,4 +164,16 @@ export async function setPoModeAction(dryRun: boolean): Promise<SettingsResult> 
   } catch (e) {
     return { ok: false, message: "Could not change the mode.", errors: [e instanceof Error ? e.message : "Unknown error"] };
   }
+}
+
+/** Change the quantity of an approved order before its draft PO is created. */
+export async function setQuantityAction(id: number, quantity: number): Promise<ActionResult> {
+  await requireAuth();
+  try {
+    await setApprovedQuantity(id, quantity);
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Could not change the quantity" };
+  }
+  refreshAll();
+  return { ok: true };
 }
