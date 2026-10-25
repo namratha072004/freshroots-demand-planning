@@ -736,6 +736,7 @@ button.ghost {
 }
 select,
 input[type="text"],
+input[type="number"],
 input[type="password"] {
   font: inherit;
   font-size: 14px;
@@ -1611,4 +1612,19 @@ code {
     grid-column: 1 / -1;
     justify-content: flex-start;
   }
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+input[type="number"]:hover:not(:disabled),
+input[type="text"]:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--faint);
+}
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  border-color: var(--brand);
 }
