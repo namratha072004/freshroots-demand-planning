@@ -4,6 +4,7 @@ import { isFestivalMonth } from "./calendar";
 import { loadCsvFiles } from "./loadCsv";
 import { assertNotStopped } from "./killSwitch";
 import { runAiStep, type AiStepSummary } from "./ai/aiStep";
+import { loadSettings } from "./settings";
 import { runLaunchStep, type LaunchStepSummary } from "./launches/step";
 import { evaluateSku, type RuleResult } from "./rules";
 import { validateSku, type DataIssue } from "./validate";
@@ -48,6 +49,7 @@ export async function runPlanning(trigger: Trigger): Promise<RunSummary> {
 
   const sql = getSql();
   const asOf = getAsOf();
+  const settings = await loadSettings(); // the rules and limits in force for this run (Settings page over config defaults)
 
   const busy = await sql`SELECT 1 FROM runs WHERE status = 'running' AND started_at > now() - interval '10 minutes' LIMIT 1`;
   if (busy.length > 0) throw new Error("A run is already in progress");
@@ -76,14 +78,17 @@ export async function runPlanning(trigger: Trigger): Promise<RunSummary> {
       const skuSales = sales.filter((s) => s.sku_id === m.sku_id);
       const inv = inventory.find((i) => i.sku_id === m.sku_id);
       const weeks = skuSales.map((s) => s.week as string);
-      const result = evaluateSku({
-        skuId: m.sku_id as string,
-        perishability: m.perishability as "Low" | "High",
-        standardReorderQty: m.standard_reorder_qty as number,
-        weeklySales: skuSales.map((s) => s.units_sold as number),
-        unitsOnHand: inv ? (inv.units_on_hand as number) : null,
-        isFestivalMonth: festival,
-      });
+      const result = evaluateSku(
+        {
+          skuId: m.sku_id as string,
+          perishability: m.perishability as "Low" | "High",
+          standardReorderQty: m.standard_reorder_qty as number,
+          weeklySales: skuSales.map((s) => s.units_sold as number),
+          unitsOnHand: inv ? (inv.units_on_hand as number) : null,
+          isFestivalMonth: festival,
+        },
+        settings.rules,
+      );
       return {
         skuId: m.sku_id as string,
         result,
@@ -92,7 +97,10 @@ export async function runPlanning(trigger: Trigger): Promise<RunSummary> {
         latestSalesWeek: weeks.length ? weeks[weeks.length - 1] : null,
         unitsOnHand: inv ? (inv.units_on_hand as number) : null,
         inventoryAsOf: inv ? (inv.as_of_date as string) : null,
-        issues: validateSku({ weeks, inventoryAsOf: inv ? (inv.as_of_date as string) : null, asOf }),
+        issues: validateSku(
+          { weeks, inventoryAsOf: inv ? (inv.as_of_date as string) : null, asOf },
+          { staleDays: settings.data.staleDays, minHistoryWeeks: settings.rules.minHistoryWeeks },
+        ),
       };
     });
 

@@ -70,8 +70,10 @@ export async function collectLeads(
   deps: LeadDeps,
   deadline: number,
   attempts: number = config.launches.attemptsPerCategory,
+  limits: { maxAgeDays: number; maxSearchesPerRun: number } = config.launches,
 ): Promise<{ leads: FinalLead[]; stats: LeadStats }> {
-  const { maxAgeDays, searchTimeoutMs, searchPhaseMs, pageFetchPhaseMs } = config.launches;
+  const { searchTimeoutMs, searchPhaseMs, pageFetchPhaseMs } = config.launches;
+  const { maxAgeDays } = limits;
   const started = Date.now();
   const searchDeadline = Math.min(deadline, started + searchPhaseMs);
   const stats: LeadStats = {
@@ -131,7 +133,7 @@ export async function collectLeads(
   const answers: { category: string; res: GroundedResponse }[] = [];
   const tries = new Map<string, number>();
   let pending = [...categories];
-  let callsLeft = config.launches.maxSearchesPerRun;
+  let callsLeft = limits.maxSearchesPerRun;
   while (pending.length > 0 && callsLeft > 0 && searchDeadline - Date.now() > (tries.size === 0 ? 1_000 : 12_000)) {
     const round = pending.slice(0, callsLeft);
     callsLeft -= round.length;

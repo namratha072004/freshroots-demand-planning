@@ -1,6 +1,6 @@
 import { getSql } from "./db";
 import { getAuthMode } from "./auth";
-import { isDryRun } from "./zoho/client";
+import { getZohoDryRun } from "./settings";
 import { listDraftPos } from "./zoho/draftPo";
 
 export type StepState = "done" | "warn" | "todo" | "off";
@@ -40,7 +40,7 @@ export async function getShellData(): Promise<ShellData> {
   const org = process.env.ZOHO_ORG_ID?.trim();
   const c = counts[0];
   const run = runs[0];
-  const dryRun = isDryRun();
+  const dryRun = await getZohoDryRun();
 
   const steps: PipelineStep[] = run
     ? (() => {

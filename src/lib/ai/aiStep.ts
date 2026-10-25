@@ -1,6 +1,7 @@
 import { getSql } from "../db";
 import { geminiGenerateJson, type GenerateJson } from "../gemini";
 import type { Metrics } from "../rules";
+import { loadSettings } from "../settings";
 import { generateAi } from "./enrich";
 import type { AiRec } from "./facts";
 
@@ -62,7 +63,8 @@ export async function runAiStep(runId: number, generate: GenerateJson = geminiGe
       weeklySales: sales.filter((s) => s.sku_id === r.sku_id).map((s) => s.units_sold as number),
     }));
 
-    const ai = await generateAi(recs, generate, Date.now() + AI_BUDGET_MS);
+    const { rules } = await loadSettings();
+    const ai = await generateAi(recs, generate, Date.now() + AI_BUDGET_MS, rules);
 
     const updates = recs
       .filter((r) => ai.reasons.has(r.skuId) || ai.triage.has(r.skuId))

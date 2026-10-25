@@ -84,9 +84,20 @@ Motion: cards rise in, KPI numbers count up, the sales line draws itself, the co
 - Inspiration came from free sources: the open-source shadcn/ui and Tremor dashboard patterns and Dribbble dashboard searches. No artwork was copied.
 - Fonts: Plus Jakarta Sans and Geist Mono (SIL Open Font License, loaded with `next/font`). Icons: `lucide-react` (ISC licence).
 
+## Settings page
+
+`/settings` lets you edit Raghav's rubric without touching code: Rule 1 (high-demand threshold and reorder multiplier), Rule 2 (stockout line), Rule 3 (overstock line), Rule 4 (festival uplift), Rule 5 (perishable windows), the data checks (minimum history, stale days), the kill-switch levels, and the launch-search limits. It also switches the Create draft PO button between **Live** and **Dry run** (going live asks first) and has a **Go to the login page** button.
+
+- Edited values are saved in Neon (`app_settings`) and override the defaults in `src/config.ts`. A value set back to its default removes the override. The next run (scheduled or manual) uses them; flags already on the list keep the numbers they were calculated with.
+- Every change is recorded in `settings_audit` with the old and new value and the time, and shown under "Change history".
+- Values are validated on the server: ranges, whole numbers where needed, minimum cover below maximum cover (normal and perishable), alert level below stop level.
+- The AI's number check uses the edited thresholds, so its sentences can quote them.
+- The login mode (`AUTH_MODE` / `DASHBOARD_PASSWORD`) is deliberately not editable here: with an open login anyone could otherwise set a password and lock the owner out. Change it in the Vercel environment variables.
+- Anyone who can open the dashboard can edit the settings while the login is open, so set a password before wider use.
+
 ## Configuration
 
-Every threshold is in one file, `src/config.ts`, each with a comment: rule thresholds, stale days, kill-switch
+Every default is in one file, `src/config.ts`, each with a comment (values edited on the Settings page override these): rule thresholds, stale days, kill-switch
 levels (including `minDecisions`), Gemini settings, launch-search limits, Zoho vendor name and timeouts.
 
 ## Assumptions to confirm with Raghav

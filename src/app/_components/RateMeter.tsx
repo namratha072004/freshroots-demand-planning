@@ -1,11 +1,8 @@
-import { config } from "@/config";
-
 /** Rejection-rate meter: 0..40% track with the alert (10%) and stop (25%) lines; the fill carries severity. */
-export function RateMeter({ rate }: { rate: number | null }) {
+export function RateMeter({ rate, alertRate, stopRate }: { rate: number | null; alertRate: number; stopRate: number }) {
   const W = 260;
   const top = 0.4;
   const px = (v: number) => (Math.min(v, top) / top) * W;
-  const { alertRate, stopRate } = config.killSwitch;
   const r = rate ?? 0;
   const fill = r >= stopRate ? "var(--bad)" : r >= alertRate ? "var(--warn)" : "var(--ok)";
   return (

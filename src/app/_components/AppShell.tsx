@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Check, CircleDashed, Compass, ListChecks, LogOut, Sprout } from "lucide-react";
+import { AlertTriangle, Check, CircleDashed, Compass, ListChecks, LogOut, SlidersHorizontal, Sprout } from "lucide-react";
 import { logout } from "../actions";
 import type { ShellData, PipelineStep } from "@/lib/shell";
 import { PoGlimpse } from "./PoGlimpse";
@@ -19,7 +19,7 @@ export function AppShell({
   shell,
   children,
 }: {
-  active: "flags" | "launches";
+  active: "flags" | "launches" | "settings";
   title: string;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
@@ -47,6 +47,10 @@ export function AppShell({
             <Compass size={19} />
             <span className="label">New launches</span>
             {shell.leadsToReview > 0 && <span className="nav-count">{shell.leadsToReview}</span>}
+          </Link>
+          <Link href="/settings" className={`nav-link ${active === "settings" ? "active" : ""}`} aria-current={active === "settings" ? "page" : undefined}>
+            <SlidersHorizontal size={19} />
+            <span className="label">Settings</span>
           </Link>
         </nav>
 

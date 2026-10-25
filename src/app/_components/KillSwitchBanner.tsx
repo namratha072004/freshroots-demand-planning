@@ -1,14 +1,13 @@
 import { BellRing, OctagonAlert } from "lucide-react";
-import { config } from "@/config";
 import type { KillSwitchStatus } from "@/lib/killSwitch";
 import { ResumeForm } from "./ResumeForm";
 
 const pct = (x: number | null) => (x === null ? "n/a" : `${(x * 100).toFixed(1)}%`);
 
 /** Shown only when something needs attention. No owner or notification channel is defined (Check 09). */
-export function KillSwitchBanner({ status }: { status: KillSwitchStatus }) {
+export function KillSwitchBanner({ status, limits }: { status: KillSwitchStatus; limits: { alertRate: number; stopRate: number; windowWeeks: number; minDecisions: number } }) {
   const { evaluation: e, stopped } = status;
-  const ks = config.killSwitch;
+  const ks = limits;
   const windowText = `last ${ks.windowWeeks} weeks`;
 
   if (stopped) {

@@ -21,7 +21,7 @@ export interface AiRec {
 const n1 = (x: number | null) => (x === null ? null : x.toFixed(1));
 
 /** The only numbers the model gets. Everything here was calculated by deterministic code. */
-export function factsFor(r: AiRec): Record<string, unknown> {
+export function factsFor(r: AiRec, rules: { festivalUplift: number } = config.rules): Record<string, unknown> {
   const m = r.metrics;
   return {
     sku_id: r.skuId,
@@ -39,7 +39,7 @@ export function factsFor(r: AiRec): Record<string, unknown> {
     avg_weekly_sales_last_4_weeks: n1(m.avg4),
     last_4_weeks_vs_12_week_average_percent: m.demandChange === null ? null : n1(m.demandChange * 100),
     festival_uplift_applied: m.festivalApplied,
-    festival_uplift_percent: m.festivalApplied ? config.rules.festivalUplift * 100 : null,
+    festival_uplift_percent: m.festivalApplied ? rules.festivalUplift * 100 : null,
     rules_could_not_decide_because: r.needsRaghavReason,
     data_issues: r.dataIssues,
     weekly_sales_oldest_to_newest: r.weeklySales,
@@ -54,14 +54,17 @@ function collectNumbers(value: unknown, out: number[]) {
 }
 
 /** Numbers the model may quote for one SKU: its own facts plus the fixed rule constants. */
-export function allowedNumbersFor(r: AiRec): number[] {
+export function allowedNumbersFor(
+  r: AiRec,
+  rules: { recentWindowWeeks: number; avgWindowWeeks: number; highDemandThreshold: number; festivalUplift: number; highDemandQtyMultiplier: number } = config.rules,
+): number[] {
   const out: number[] = [
-    config.rules.recentWindowWeeks,
-    config.rules.avgWindowWeeks,
-    config.rules.highDemandThreshold * 100,
-    config.rules.festivalUplift * 100,
-    config.rules.highDemandQtyMultiplier,
+    rules.recentWindowWeeks,
+    rules.avgWindowWeeks,
+    rules.highDemandThreshold * 100,
+    rules.festivalUplift * 100,
+    rules.highDemandQtyMultiplier,
   ];
-  collectNumbers(factsFor(r), out);
+  collectNumbers(factsFor(r, rules), out);
   return out;
 }

@@ -1,6 +1,6 @@
 import { getSql } from "./db";
 import { evaluateKillSwitch, type KillSwitchEvaluation } from "./killSwitchRules";
-import { config } from "@/config";
+import { loadSettings } from "./settings";
 
 export class KillSwitchStoppedError extends Error {
   constructor() {
@@ -20,11 +20,12 @@ export interface KillSwitchStatus {
 /** Reads decisions and the stop latch. `now` is the real clock. */
 export async function getKillSwitchStatus(now: Date = new Date()): Promise<KillSwitchStatus> {
   const sql = getSql();
+  const { killSwitch: ksParams } = await loadSettings();
   const [events, resumed, decisions] = await Promise.all([
     sql`SELECT kind, created_at, approved, rejected, decided, rate FROM kill_switch_events ORDER BY id DESC LIMIT 1`,
     sql`SELECT created_at, note FROM kill_switch_events WHERE kind = 'RESUMED' ORDER BY id DESC LIMIT 1`,
     sql`SELECT status, action, decided_at FROM recommendations
-        WHERE status IN ('APPROVED', 'REJECTED') AND decided_at >= ${new Date(now.getTime() - config.killSwitch.windowWeeks * 7 * 86_400_000).toISOString()}`,
+        WHERE status IN ('APPROVED', 'REJECTED') AND decided_at >= ${new Date(now.getTime() - ksParams.windowWeeks * 7 * 86_400_000).toISOString()}`,
   ]);
 
   const lastResumedAt = resumed.length ? new Date(resumed[0].created_at as string) : null;
@@ -36,6 +37,7 @@ export async function getKillSwitchStatus(now: Date = new Date()): Promise<KillS
     })),
     now,
     lastResumedAt,
+    ksParams,
   );
   const stopped = events.length > 0 && events[0].kind === "STOPPED";
   return {

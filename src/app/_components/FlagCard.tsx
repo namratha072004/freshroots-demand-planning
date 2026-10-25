@@ -30,7 +30,7 @@ function FlagChips({ r }: { r: FlagRow }) {
 }
 
 /** One flag as a card: identity and action on top, the two charts the rules used, the AI reason, then the decision. */
-export function FlagCard({ r }: { r: FlagRow }) {
+export function FlagCard({ r, festivalPct }: { r: FlagRow; festivalPct: number }) {
   const m = r.metrics;
   const reasons = REJECTION_REASONS.map((value) => ({ value, label: REJECTION_LABELS[value] }));
   const decided = r.status !== "PENDING";
@@ -54,7 +54,7 @@ export function FlagCard({ r }: { r: FlagRow }) {
         <div className="viz">
           <div className="viz-block">
             <div className="viz-label">Weeks of cover</div>
-            <div className="viz-value">{m.cover.toFixed(1)} <small>wk{m.festivalApplied ? " · festival +25%" : ""}</small></div>
+            <div className="viz-value">{m.cover.toFixed(1)} <small>wk{m.festivalApplied ? ` · festival +${festivalPct}%` : ""}</small></div>
             <CoverMeter cover={m.cover} min={m.minCover} max={m.maxCover} />
             <div className="viz-foot">Safe zone {m.minCover} to {m.maxCover} weeks</div>
           </div>

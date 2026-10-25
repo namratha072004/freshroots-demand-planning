@@ -36,9 +36,12 @@ export interface SkuDataCheck {
 }
 
 /** Flags missing or stale data for one SKU. Pure. */
-export function validateSku({ weeks, inventoryAsOf, asOf }: SkuDataCheck): DataIssue[] {
+export function validateSku(
+  { weeks, inventoryAsOf, asOf }: SkuDataCheck,
+  opts: { staleDays: number; minHistoryWeeks: number } = { staleDays: config.data.staleDays, minHistoryWeeks: config.rules.minHistoryWeeks },
+): DataIssue[] {
   const issues: DataIssue[] = [];
-  const { staleDays } = config.data;
+  const { staleDays } = opts;
 
   if (inventoryAsOf === null) issues.push("MISSING_INVENTORY");
   else if ((utc(asOf) - utc(inventoryAsOf)) / DAY > staleDays) issues.push("STALE_INVENTORY");
@@ -48,7 +51,7 @@ export function validateSku({ weeks, inventoryAsOf, asOf }: SkuDataCheck): DataI
     return issues;
   }
   const sorted = [...weeks].sort();
-  if (sorted.length < config.rules.minHistoryWeeks) issues.push("SHORT_HISTORY");
+  if (sorted.length < opts.minHistoryWeeks) issues.push("SHORT_HISTORY");
   const mondays = sorted.map(isoWeekMonday);
   if (mondays.some((t, i) => i > 0 && t - mondays[i - 1] !== 7 * DAY)) issues.push("SALES_GAP");
   if ((utc(asOf) - utc(isoWeekEnd(sorted[sorted.length - 1]))) / DAY > staleDays) issues.push("STALE_SALES");

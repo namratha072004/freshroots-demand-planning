@@ -29,8 +29,20 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
  * never ASOF_OVERRIDE). Only decisions made after the latest resume count. NEEDS_RAGHAV, SUPERSEDED and
  * undecided items never count. Pure.
  */
-export function evaluateKillSwitch(decisions: DecisionRecord[], now: Date, lastResumedAt: Date | null): KillSwitchEvaluation {
-  const { alertRate, stopRate, windowWeeks, minDecisions } = config.killSwitch;
+export interface KillSwitchParams {
+  alertRate: number;
+  stopRate: number;
+  windowWeeks: number;
+  minDecisions: number;
+}
+
+export function evaluateKillSwitch(
+  decisions: DecisionRecord[],
+  now: Date,
+  lastResumedAt: Date | null,
+  params: KillSwitchParams = config.killSwitch,
+): KillSwitchEvaluation {
+  const { alertRate, stopRate, windowWeeks, minDecisions } = params;
   const rolling = now.getTime() - windowWeeks * WEEK_MS;
   const windowStart = new Date(Math.max(rolling, lastResumedAt?.getTime() ?? -Infinity));
 

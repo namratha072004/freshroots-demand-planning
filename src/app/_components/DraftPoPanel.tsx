@@ -1,6 +1,6 @@
 import { ExternalLink, FileCheck2 } from "lucide-react";
 import { config } from "@/config";
-import { isDryRun } from "@/lib/zoho/client";
+import { getZohoDryRun } from "@/lib/settings";
 import { getPendingAttempt, getReadyBatch, listDraftPos } from "@/lib/zoho/draftPo";
 import { CreatePoButton } from "./CreatePoButton";
 
@@ -10,7 +10,7 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: 
 export async function DraftPoPanel({ stopped }: { stopped: boolean }) {
   const [batch, pos, pending] = await Promise.all([getReadyBatch(), listDraftPos(), getPendingAttempt()]);
   const org = process.env.ZOHO_ORG_ID?.trim();
-  const dry = isDryRun();
+  const dry = await getZohoDryRun();
   return (
     <section className="card po section" style={{ marginTop: 0 }} aria-label="Draft purchase order">
       <div className="po-head">

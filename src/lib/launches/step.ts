@@ -1,6 +1,7 @@
 import { config } from "@/config";
 import { getSql } from "../db";
 import { geminiSearch } from "../gemini";
+import { loadSettings } from "../settings";
 import { collectLeads, type LeadDeps, type LeadStats } from "./collect";
 import { fetchSource } from "./fetchSource";
 
@@ -50,10 +51,11 @@ export async function runLaunchStep(
       return await finish({ status: "skipped", kept: 0, stats: null, error: "GEMINI_API_KEY or GEMINI_MODEL is not set" });
     }
     const cats = (await sql`SELECT DISTINCT category FROM sku_master ORDER BY category`).map((r) => r.category as string);
-    const categories = pickCategories(cats, runId, config.launches.maxSearchesPerRun);
+    const { launches: limits } = await loadSettings();
+    const categories = pickCategories(cats, runId, limits.maxSearchesPerRun);
     if (categories.length === 0) return await finish({ status: "ok", kept: 0, stats: null, error: null });
 
-    const { leads, stats } = await collectLeads(categories, deps, Date.now() + config.launches.searchPhaseMs + config.launches.pageFetchPhaseMs + 2_000);
+    const { leads, stats } = await collectLeads(categories, deps, Date.now() + config.launches.searchPhaseMs + config.launches.pageFetchPhaseMs + 2_000, config.launches.attemptsPerCategory, limits);
 
     if (leads.length) {
       await sql`INSERT INTO launch_leads (run_id, category, title, summary, source_url, grounding_uri, source_site, source_date)

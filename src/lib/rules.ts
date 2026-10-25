@@ -43,9 +43,19 @@ export interface RuleResult {
   metrics: Metrics;
 }
 
-const { rules } = config;
-const gt = (a: number, b: number) => a > b + rules.epsilon;
-const lt = (a: number, b: number) => a < b - rules.epsilon;
+export interface RuleParams {
+  avgWindowWeeks: number;
+  recentWindowWeeks: number;
+  highDemandThreshold: number;
+  highDemandQtyMultiplier: number;
+  festivalUplift: number;
+  cover: { min: number; max: number };
+  coverPerishable: { min: number; max: number };
+  minHistoryWeeks: number;
+  epsilon: number;
+  roundQtyUp: boolean;
+}
+
 const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
 
 function emptyMetrics(weeks: number, festival: boolean): Metrics {
@@ -75,7 +85,9 @@ function needsRaghav(input: SkuInput, reason: string, metrics: Metrics, flags: F
 }
 
 /** Deterministic rules engine: Raghav's 5 rules plus assumptions A1-A5. No I/O, no AI. */
-export function evaluateSku(input: SkuInput): RuleResult {
+export function evaluateSku(input: SkuInput, rules: RuleParams = config.rules): RuleResult {
+  const gt = (a: number, b: number) => a > b + rules.epsilon;
+  const lt = (a: number, b: number) => a < b - rules.epsilon;
   const weeks = input.weeklySales.length;
   const base = emptyMetrics(weeks, input.isFestivalMonth);
 

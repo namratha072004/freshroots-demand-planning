@@ -1,5 +1,4 @@
 import { Boxes, FileCheck2, Gauge, Inbox } from "lucide-react";
-import { config } from "@/config";
 import type { FlagRow } from "@/lib/dashboard";
 import type { KillSwitchStatus } from "@/lib/killSwitch";
 import { listDraftPos } from "@/lib/zoho/draftPo";
@@ -7,7 +6,19 @@ import { CountUp } from "./CountUp";
 import { RateMeter } from "./RateMeter";
 
 /** Four headline numbers. Hero figures are sentence-case labels over a 34px figure. */
-export async function KpiStrip({ rows, pendingCount, ks, dryRun }: { rows: FlagRow[]; pendingCount: number; ks: KillSwitchStatus; dryRun: boolean }) {
+export async function KpiStrip({
+  rows,
+  pendingCount,
+  ks,
+  dryRun,
+  limits,
+}: {
+  rows: FlagRow[];
+  pendingCount: number;
+  ks: KillSwitchStatus;
+  dryRun: boolean;
+  limits: { alertRate: number; stopRate: number; minDecisions: number };
+}) {
   const pos = await listDraftPos(5);
   const created = pos.filter((p) => p.status === "created");
   const pend = rows.filter((r) => r.status === "PENDING" && r.action !== "NEEDS_RAGHAV");
@@ -34,9 +45,9 @@ export async function KpiStrip({ rows, pendingCount, ks, dryRun }: { rows: FlagR
       <div className="card kpi">
         <div className="kpi-label"><Gauge size={16} /> Rejection rate · 4 weeks</div>
         <div className="kpi-value">{e.rate === null ? "n/a" : <CountUp value={e.rate * 100} decimals={1} suffix="%" />}</div>
-        <RateMeter rate={e.rate} />
+        <RateMeter rate={e.rate} alertRate={limits.alertRate} stopRate={limits.stopRate} />
         <div className="kpi-foot">
-          {ks.stopped ? "Stopped" : e.collecting ? `Collecting data: ${e.decided} of ${config.killSwitch.minDecisions} decisions` : `${e.rejected} of ${e.decided} decisions rejected`}
+          {ks.stopped ? "Stopped" : e.collecting ? `Collecting data: ${e.decided} of ${limits.minDecisions} decisions` : `${e.rejected} of ${e.decided} decisions rejected`}
         </div>
       </div>
 

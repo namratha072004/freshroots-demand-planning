@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { GenerateJson } from "../gemini";
+import { config } from "@/config";
 import { allowedNumbersFor, factsFor, type AiRec } from "./facts";
 import { disallowedNumbers } from "./numberGuard";
 import { REASONS_JSON_SCHEMA, ReasonSchema, TRIAGE_JSON_SCHEMA, TriageSchema } from "./schemas";
@@ -21,7 +22,9 @@ const RULES_FOR_MODEL = `You are helping a demand planner. All numbers were alre
 - Do not change, question or add to the action or quantity. Do not recommend anything other than the given action.
 - Write plain English, one sentence, at most 35 words. Write numbers as digits.`;
 
-function reasonsPrompt(recs: AiRec[], extra = ""): string {
+type AiRules = typeof config.rules | { recentWindowWeeks: number; avgWindowWeeks: number; highDemandThreshold: number; festivalUplift: number; highDemandQtyMultiplier: number };
+
+function reasonsPrompt(recs: AiRec[], rules: AiRules, extra = ""): string {
   return `${RULES_FOR_MODEL}
 
 Task: for each SKU, write one sentence saying why it was flagged: the flag, the key number(s), and the action given.
@@ -32,10 +35,10 @@ ${extra}
 Return a JSON array with exactly one { "sku_id", "reason" } per SKU.
 
 FACTS:
-${JSON.stringify(recs.map(factsFor))}`;
+${JSON.stringify(recs.map((r) => factsFor(r, rules)))}`;
 }
 
-function triagePrompt(recs: AiRec[]): string {
+function triagePrompt(recs: AiRec[], rules: AiRules): string {
   return `${RULES_FOR_MODEL}
 
 Task: decide for each SKU whether the senior planner should look at it personally because the recent sales pattern may be a one-off or otherwise unusual
@@ -45,7 +48,7 @@ Example: { "sku_id": "SKU0XX", "needs_raghav": true, "reason": "Sales spiked the
 Return a JSON array with exactly one { "sku_id", "needs_raghav", "reason" } per SKU.
 
 FACTS:
-${JSON.stringify(recs.map(factsFor))}`;
+${JSON.stringify(recs.map((r) => factsFor(r, rules)))}`;
 }
 
 function parseArray<T>(raw: unknown, schema: z.ZodType<T>, known: Set<string>, errors: string[], label: string): Map<string, T> {
@@ -68,13 +71,13 @@ function parseArray<T>(raw: unknown, schema: z.ZodType<T>, known: Set<string>, e
 }
 
 /** Keep only reasons whose numbers all come from the facts. Returns the kept ones and the SKUs that failed. */
-function guardNumbers(recs: AiRec[], text: Map<string, string>, errors: string[], label: string) {
+function guardNumbers(recs: AiRec[], text: Map<string, string>, errors: string[], label: string, rules: AiRules) {
   const kept = new Map<string, string>();
   const failed: { rec: AiRec; bad: string[] }[] = [];
   for (const r of recs) {
     const t = text.get(r.skuId);
     if (t === undefined) continue;
-    const bad = disallowedNumbers(t, allowedNumbersFor(r));
+    const bad = disallowedNumbers(t, allowedNumbersFor(r, rules));
     if (bad.length === 0) kept.set(r.skuId, t);
     else failed.push({ rec: r, bad });
   }
@@ -86,7 +89,7 @@ function guardNumbers(recs: AiRec[], text: Map<string, string>, errors: string[]
  * Reasons and triage from the model. Never throws: any failure just leaves reasons/triage out.
  * The model only writes text; every number it may quote came from deterministic code and is checked.
  */
-export async function generateAi(recs: AiRec[], generate: GenerateJson, deadline: number): Promise<AiResult> {
+export async function generateAi(recs: AiRec[], generate: GenerateJson, deadline: number, rules: AiRules = config.rules): Promise<AiResult> {
   const result: AiResult = { reasons: new Map(), triage: new Map(), errors: [] };
   if (recs.length === 0) return result;
   const known = new Set(recs.map((r) => r.skuId));
@@ -103,14 +106,14 @@ export async function generateAi(recs: AiRec[], generate: GenerateJson, deadline
   };
 
   const [reasonsCall, triageCall] = await Promise.allSettled([
-    call(reasonsPrompt(recs), REASONS_JSON_SCHEMA),
-    call(triagePrompt(recs), TRIAGE_JSON_SCHEMA),
+    call(reasonsPrompt(recs, rules), REASONS_JSON_SCHEMA),
+    call(triagePrompt(recs, rules), TRIAGE_JSON_SCHEMA),
   ]);
 
   if (reasonsCall.status === "fulfilled") {
     const parsed = parseArray(reasonsCall.value, ReasonSchema, known, result.errors, "reasons");
     const text = new Map([...parsed].map(([id, v]) => [id, v.reason]));
-    const { kept, failed } = guardNumbers(recs, text, result.errors, "reasons");
+    const { kept, failed } = guardNumbers(recs, text, result.errors, "reasons", rules);
     kept.forEach((v, k) => result.reasons.set(k, v));
 
     // One retry for reasons that quoted numbers outside the data, if there is time left.
@@ -119,12 +122,12 @@ export async function generateAi(recs: AiRec[], generate: GenerateJson, deadline
       try {
         const retryRecs = failed.map((f) => f.rec);
         const raw = await generate({
-          prompt: reasonsPrompt(retryRecs, `Your previous answer used numbers that are not in FACTS (${bads}). Use only numbers from FACTS, exactly as written.`),
+          prompt: reasonsPrompt(retryRecs, rules, `Your previous answer used numbers that are not in FACTS (${bads}). Use only numbers from FACTS, exactly as written.`),
           schema: REASONS_JSON_SCHEMA,
           timeoutMs: budget(),
         });
         const again = parseArray(raw, ReasonSchema, new Set(retryRecs.map((r) => r.skuId)), result.errors, "reasons retry");
-        const { kept: ok } = guardNumbers(retryRecs, new Map([...again].map(([id, v]) => [id, v.reason])), result.errors, "reasons retry");
+        const { kept: ok } = guardNumbers(retryRecs, new Map([...again].map(([id, v]) => [id, v.reason])), result.errors, "reasons retry", rules);
         ok.forEach((v, k) => result.reasons.set(k, v));
       } catch (e) {
         result.errors.push(`reasons retry: ${e instanceof Error ? e.message : String(e)}`);
@@ -136,7 +139,7 @@ export async function generateAi(recs: AiRec[], generate: GenerateJson, deadline
 
   if (triageCall.status === "fulfilled") {
     const parsed = parseArray(triageCall.value, TriageSchema, known, result.errors, "triage");
-    const { kept } = guardNumbers(recs, new Map([...parsed].map(([id, v]) => [id, v.reason])), result.errors, "triage");
+    const { kept } = guardNumbers(recs, new Map([...parsed].map(([id, v]) => [id, v.reason])), result.errors, "triage", rules);
     for (const [id, item] of parsed) result.triage.set(id, { needsRaghav: item.needs_raghav, reason: kept.get(id) ?? null });
   } else {
     result.errors.push(`triage: ${triageCall.reason instanceof Error ? triageCall.reason.message : String(triageCall.reason)}`);

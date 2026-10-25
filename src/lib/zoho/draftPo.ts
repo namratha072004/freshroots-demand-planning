@@ -1,8 +1,9 @@
 import { config } from "@/config";
 import { getSql } from "../db";
 import { assertNotStopped } from "../killSwitch";
+import { getZohoDryRun } from "../settings";
 import { buildBatch, buildPayload, type Batch } from "./batch";
-import { isDryRun, ZohoClient, ZohoError, zohoEnv, type PoPayload } from "./client";
+import { ZohoClient, ZohoError, zohoEnv, type PoPayload } from "./client";
 
 export interface DraftPoRow {
   id: number;
@@ -168,7 +169,7 @@ export async function createDraftPo(client?: ZohoClient): Promise<CreateResult> 
     // An unfinished earlier attempt always comes first: its lines are still locked to it.
     const pending = await getPendingAttempt();
     if (pending) {
-      if (isDryRun()) return { ok: false, message: "An earlier draft PO attempt is unresolved. Turn dry run off to re-check it in Zoho." };
+      if (await getZohoDryRun()) return { ok: false, message: "An earlier draft PO attempt is unresolved. Turn dry run off to re-check it in Zoho." };
       return await resumePending(zoho, pending);
     }
 
@@ -185,7 +186,7 @@ export async function createDraftPo(client?: ZohoClient): Promise<CreateResult> 
     const payload = buildPayload(batch, vendor.contact_id, map);
     const lines = batch.lines.map((l) => ({ skuId: l.skuId, quantity: l.quantity }));
 
-    if (isDryRun()) {
+    if (await getZohoDryRun()) {
       await sql`INSERT INTO draft_purchase_orders (batch_key, reference_number, status, recommendation_ids, lines, vendor_id)
         VALUES (${batch.batchKey}, ${batch.referenceNumber}, 'dry_run', ${batch.recommendationIds}::bigint[], ${JSON.stringify(lines)}::jsonb, ${vendor.contact_id})`;
       return { ok: true, mode: "dry_run", payload, lines };
