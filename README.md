@@ -84,10 +84,24 @@ Motion: cards rise in, KPI numbers count up, the sales line draws itself, the co
 - Inspiration came from free sources: the open-source shadcn/ui and Tremor dashboard patterns and Dribbble dashboard searches. No artwork was copied.
 - Fonts: Plus Jakarta Sans and Geist Mono (SIL Open Font License, loaded with `next/font`). Icons: `lucide-react` (ISC licence).
 
-## Clickable summary cards and colour themes
+## Pages
 
-- Every headline card opens the list behind it (`/?view=...`, shareable links). **To review** shows the flags waiting for a decision; **Proposed order quantity** shows the ORDER_NOW flags that have not been rejected (and their total); **Rejection rate** shows the rejected decisions in the kill-switch window, across runs, with the reason for each and a split by reason; **Draft POs in Zoho** jumps to the PO section. A filter bar (All flags, To review, Proposed order, Rejected, Approved) shows a count on each chip, and each count equals the length of its list (tested).
-- **Appearance:** five colour themes (Forest, Ocean, Grape, Rose, Graphite) and Light / Dark / Match my device, from the palette button in the header or the Settings page. The choice is kept in a cookie so the server renders it with no flash. Every text/background pair was checked for contrast in all ten theme-and-mode combinations; the status colours (order, pause, approved, rejected) are the same in every theme on purpose.
+The dashboard is split so no single page is crowded. The **Overview** is one screen: four headline cards and a "What to do next" panel. Each card opens its own page, which shows only that list, one line per flag:
+
+| Card / sidebar item | Page | What it shows |
+|---|---|---|
+| To review | `/review` | Only the flags waiting for a decision (Order now, Pause the next order, and "Needs your judgment"), with Approve / Reject on each row. Decided flags move to a "Decided in this run" section. |
+| Proposed order quantity | `/orders` | The ORDER_NOW flags that have not been rejected, with approved / still-waiting totals. |
+| Rejection rate | `/rejections` | Every rejection in the kill-switch window across runs, the reason given, when and from which run, and a split by reason. An Approved tab shows the approvals. |
+| Draft POs in Zoho | `/purchase-orders` | The approved lines ready for a draft PO, the Create draft PO button, and every draft PO created in Zoho. |
+| New launches | `/launches` | Sourced launch leads. |
+| Settings | `/settings` | Editable rules, kill switch, launch limits, PO live/dry run, appearance. |
+
+Each flag is a one-line row (product, action, stock cover, weekly sales, decision). Click a row to open its charts, flags and the AI reason. All pages refresh after a decision, run or settings change.
+
+## Colour themes
+
+Five themes (Forest, Ocean, Grape, Rose, Graphite) and Light / Dark / Match my device, from the palette button in the header or the Settings page. The choice is kept in a cookie so the server renders it with no flash. Every text/background pair was checked for contrast in all ten theme-and-mode combinations; the status colours (order, pause, approved, rejected) are the same in every theme on purpose.
 
 ## Settings page
 

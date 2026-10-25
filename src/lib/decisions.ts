@@ -1,13 +1,8 @@
 import { getSql } from "./db";
 
-export const REJECTION_REASONS = ["wrong_data", "rule_doesnt_fit", "my_judgment"] as const;
-export type RejectionReason = (typeof REJECTION_REASONS)[number];
+import { REJECTION_LABELS, REJECTION_REASONS, type RejectionReason } from "./rejectionReasons";
 
-export const REJECTION_LABELS: Record<RejectionReason, string> = {
-  wrong_data: "The data is wrong",
-  rule_doesnt_fit: "The rule doesn't fit this case",
-  my_judgment: "My own judgment says otherwise",
-};
+export { REJECTION_LABELS, REJECTION_REASONS, type RejectionReason };
 
 export function parseRejectionReason(value: unknown): RejectionReason {
   if (typeof value === "string" && (REJECTION_REASONS as readonly string[]).includes(value)) {

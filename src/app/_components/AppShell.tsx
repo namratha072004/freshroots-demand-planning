@@ -1,9 +1,19 @@
 import Link from "next/link";
-import { AlertTriangle, Check, CircleDashed, Compass, ListChecks, LogOut, SlidersHorizontal, Sprout } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Boxes, Check, CircleDashed, Compass, FileCheck2, LayoutDashboard, ListChecks, LogOut, OctagonX, SlidersHorizontal, Sprout } from "lucide-react";
 import { logout } from "../actions";
 import type { ShellData, PipelineStep } from "@/lib/shell";
 import { AppearanceMenu } from "./Appearance";
 import { PoGlimpse } from "./PoGlimpse";
+
+const NAV = [
+  { id: "overview", href: "/", label: "Overview", icon: LayoutDashboard },
+  { id: "review", href: "/review", label: "To review", icon: ListChecks },
+  { id: "orders", href: "/orders", label: "Proposed orders", icon: Boxes },
+  { id: "rejections", href: "/rejections", label: "Rejections", icon: OctagonX },
+  { id: "pos", href: "/purchase-orders", label: "Purchase orders", icon: FileCheck2 },
+  { id: "launches", href: "/launches", label: "New launches", icon: Compass },
+  { id: "settings", href: "/settings", label: "Settings", icon: SlidersHorizontal },
+] as const;
 
 function StepDot({ state }: { state: PipelineStep["state"] }) {
   if (state === "done") return <span className="pipe-dot done"><Check size={13} strokeWidth={3} /></span>;
@@ -17,13 +27,16 @@ export function AppShell({
   title,
   subtitle,
   actions,
+  back,
   shell,
   children,
 }: {
-  active: "flags" | "launches" | "settings";
+  active: "overview" | "review" | "orders" | "rejections" | "pos" | "launches" | "settings";
   title: string;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
+  /** Shown above the title on a drill-down page. */
+  back?: { href: string; label: string };
   shell: ShellData;
   children: React.ReactNode;
 }) {
@@ -39,20 +52,14 @@ export function AppShell({
         </div>
 
         <nav className="nav" aria-label="Main">
-          <Link href="/" className={`nav-link ${active === "flags" ? "active" : ""}`} aria-current={active === "flags" ? "page" : undefined}>
-            <ListChecks size={19} />
-            <span className="label">Flag list</span>
-            {shell.flagsToReview > 0 && <span className="nav-count">{shell.flagsToReview}</span>}
-          </Link>
-          <Link href="/launches" className={`nav-link ${active === "launches" ? "active" : ""}`} aria-current={active === "launches" ? "page" : undefined}>
-            <Compass size={19} />
-            <span className="label">New launches</span>
-            {shell.leadsToReview > 0 && <span className="nav-count">{shell.leadsToReview}</span>}
-          </Link>
-          <Link href="/settings" className={`nav-link ${active === "settings" ? "active" : ""}`} aria-current={active === "settings" ? "page" : undefined}>
-            <SlidersHorizontal size={19} />
-            <span className="label">Settings</span>
-          </Link>
+          {NAV.map((n) => (
+            <Link key={n.id} href={n.href} className={`nav-link ${active === n.id ? "active" : ""}`} aria-current={active === n.id ? "page" : undefined}>
+              <n.icon size={19} />
+              <span className="label">{n.label}</span>
+              {n.id === "review" && shell.flagsToReview > 0 && <span className="nav-count">{shell.flagsToReview}</span>}
+              {n.id === "launches" && shell.leadsToReview > 0 && <span className="nav-count">{shell.leadsToReview}</span>}
+            </Link>
+          ))}
         </nav>
 
         <div className="pipe-block">
@@ -88,6 +95,11 @@ export function AppShell({
       <main className="main">
         <header className="page-head">
           <div>
+            {back && (
+              <Link href={back.href} className="back-link">
+                <ArrowLeft size={15} /> {back.label}
+              </Link>
+            )}
             <h1 className="page-title">{title}</h1>
             {subtitle && <div className="page-sub">{subtitle}</div>}
           </div>

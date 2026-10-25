@@ -6,12 +6,12 @@ import { useState } from "react";
  * 16-week sales line. 2px line, last 4 weeks drawn in the accent (the window the rules compare), an end dot of
  * 8px with a surface ring, and a hover crosshair with a readout. A hidden table-friendly summary is in aria-label.
  */
-export function Sparkline({ data, highlightLast = 4 }: { data: { week: string; units: number }[]; highlightLast?: number }) {
+export function Sparkline({ data, highlightLast = 4, height = 52 }: { data: { week: string; units: number }[]; highlightLast?: number; height?: number }) {
   const [hover, setHover] = useState<number | null>(null);
   if (data.length < 2) return <div className="viz-foot">No sales history</div>;
 
   const W = 220;
-  const H = 52;
+  const H = height;
   const padX = 6;
   const padY = 8;
   const max = Math.max(...data.map((d) => d.units));

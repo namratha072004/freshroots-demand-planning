@@ -1881,3 +1881,281 @@ html {
     scroll-behavior: auto;
   }
 }
+
+/* ---------- Drill-down pages: back link, summary strip, compact rows ---------- */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  margin-bottom: 6px;
+}
+.back-link:hover {
+  color: var(--brand);
+}
+.back-link svg {
+  transition: transform 0.18s ease;
+}
+.back-link:hover svg {
+  transform: translateX(-3px);
+}
+.sumstrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+}
+.sum-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  box-shadow: var(--shadow);
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.sum-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.sum-value {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.sum-value small {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.sum-note {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.tabs-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 18px 0 4px;
+}
+
+/* the table of one-line rows */
+.ftable {
+  overflow: hidden;
+}
+.ftable-head,
+.frow-main {
+  display: grid;
+  grid-template-columns: 40px minmax(170px, 1.5fr) minmax(125px, 0.8fr) minmax(100px, 0.7fr) minmax(120px, 0.8fr) 236px;
+  gap: 12px;
+  align-items: center;
+}
+.ftable-head {
+  padding: 10px 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+.frow {
+  border-bottom: 1px solid var(--line);
+  transition: background 0.15s ease;
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.frow:nth-child(2) { animation-delay: 0.05s; }
+.frow:nth-child(3) { animation-delay: 0.1s; }
+.frow:nth-child(4) { animation-delay: 0.15s; }
+.frow:nth-child(5) { animation-delay: 0.2s; }
+.frow:nth-child(n + 6) { animation-delay: 0.25s; }
+.frow:last-child {
+  border-bottom: 0;
+}
+.frow:hover {
+  background: var(--surface-2);
+}
+.frow.open {
+  background: var(--surface-2);
+}
+.frow-main {
+  padding: 12px 14px;
+}
+.frow-toggle {
+  padding: 6px;
+  border-radius: 8px;
+}
+.frow-toggle .chev {
+  transition: transform 0.2s ease;
+}
+.frow.open .chev {
+  transform: rotate(90deg);
+}
+.fcell {
+  min-width: 0;
+}
+.fcell-name {
+  cursor: pointer;
+}
+.fcell-name .flag-name {
+  font-size: 15px;
+}
+.fcell-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fval {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.fval small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.cover.sm {
+  margin: 6px 0 0;
+}
+.cover.sm .cover-track {
+  height: 6px;
+}
+.cover.sm .cover-marker {
+  width: 11px;
+  height: 11px;
+  margin: -5px 0 0 -5px;
+}
+.fcell-sales .spark-wrap {
+  margin-top: 1px;
+}
+.dotmark {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--warn);
+  box-shadow: 0 0 0 3px var(--warn-bg);
+  flex: none;
+}
+.fcell-decision .actions button {
+  padding: 6px 11px;
+  font-size: 13.5px;
+}
+.decided-info {
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+  font-size: 13px;
+}
+.faintline {
+  font-size: 12px;
+}
+.frow-detail {
+  display: grid;
+  gap: 12px;
+  padding: 4px 14px 16px 66px;
+  animation: popin 0.2s ease-out;
+}
+.section .ftable,
+.section-head + .ftable {
+  margin-top: 0;
+}
+
+/* overview */
+.nextsteps {
+  padding: 18px 20px;
+  margin-top: 18px;
+  display: grid;
+  gap: 4px;
+}
+.next-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.next-row:first-of-type {
+  border-top: 0;
+}
+.next-row.calm {
+  color: var(--ok-ink);
+  font-weight: 600;
+}
+.next-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-tint);
+  color: var(--brand);
+  flex: none;
+}
+.next-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+}
+.next-cta {
+  text-decoration: none;
+  flex: none;
+}
+a.btn.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+  overflow: hidden;
+}
+a.btn.primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 0.65s ease;
+}
+a.btn.primary:hover::after {
+  transform: translateX(130%);
+}
+
+@media (max-width: 1100px) {
+  .ftable-head {
+    display: none;
+  }
+  .frow-main {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 8px 12px;
+  }
+  .fcell-cover,
+  .fcell-sales {
+    display: none;
+  }
+  .fcell-decision {
+    grid-column: 2 / -1;
+  }
+  .frow-detail {
+    padding-left: 14px;
+  }
+}
+
+/* Approve and Reject sit side by side so a row stays one line tall. */
+.fcell-decision .actions {
+  flex-wrap: nowrap;
+}
+.fcell-decision .rejectbox {
+  flex-wrap: wrap;
+}
+.fcell-decision .rejectbox select {
+  max-width: 220px;
+}
