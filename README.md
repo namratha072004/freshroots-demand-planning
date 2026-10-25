@@ -20,8 +20,8 @@ system does not guess.
 | Dashboard: Flag list and New launches tabs, login | Built |
 | Kill switch (alert 10%, stop 25%, 4 weeks, resume with note) | Built |
 | Zoho draft PO (one real draft PO verified in Zoho) | Built |
-| **Scheduled run (Vercel Cron, Mon + Thu 08:00 IST)** | **Not built yet** (no cron route, `CRON_SECRET` unused) |
-| **Deploy to Vercel** | **Not done yet** |
+| Scheduled run (Vercel Cron, Mon + Thu 08:00 IST) | Built: `GET /api/cron/run`, registered on Vercel |
+| Deployed on Vercel | Done: https://freshroots-demand-planning-nu.vercel.app |
 
 ## Setup
 
@@ -62,7 +62,17 @@ Secrets live only in environment variables (`.env.local` locally, never in git).
 | `ZOHO_DRY_RUN` | `true` = build and show the PO request but never create it. Default `false` |
 | `AUTH_MODE` | `open` (any password) or `password` (checks `DASHBOARD_PASSWORD`). Switching is this one setting and logs everyone out. In `password` mode with no password set, nobody can log in |
 | `DASHBOARD_PASSWORD` | Used when `AUTH_MODE=password` |
-| `CRON_SECRET` | Will protect the cron endpoint. Not used yet |
+| `CRON_SECRET` | Protects `/api/cron/run`. Vercel sends it as `Authorization: Bearer <CRON_SECRET>`; without it the endpoint answers 401 |
+
+## Deployment (Vercel)
+
+- Live at https://freshroots-demand-planning-nu.vercel.app (Vercel team `mesa-ai1`, Hobby plan). The 13 settings below are set as Vercel Production environment variables.
+- **Online settings differ from local on purpose:** `AUTH_MODE=open` (no dashboard password yet; anyone with the link can use the dashboard) and `ZOHO_DRY_RUN=true` (the Create draft PO button shows the request but creates nothing in Zoho). To go live: set `DASHBOARD_PASSWORD` and `AUTH_MODE=password`, and set `ZOHO_DRY_RUN=false`, in the Vercel project's environment variables, then redeploy.
+- **Schedule:** `vercel.json` registers `/api/cron/run` at `30 2 * * 1,4` (UTC) = Monday and Thursday 08:00 IST. Vercel calls it with GET and `Authorization: Bearer <CRON_SECRET>`. Per Vercel's docs, Hobby cron timing is only precise within the hour (so the run can start any time from 07:30 to 08:29 IST), delivery is best effort with no retries, and a schedule can occasionally be delivered twice. The endpoint therefore skips a scheduled run if one already started in the last 30 minutes. A stopped kill switch refuses the scheduled run (HTTP 423).
+- The cron endpoint sits outside the dashboard login and protects itself with `CRON_SECRET` (fails closed if it is not set).
+- The CSVs in `/data` are bundled into the server build through `outputFileTracingIncludes` in `next.config.ts`.
+- A run takes about 75 seconds on Vercel; the function limit is 300 seconds (Fluid compute).
+- Redeploy from this repo with `vercel deploy --prod`.
 
 ## Configuration
 
@@ -126,7 +136,8 @@ D1 `ASOF_OVERRIDE`. D2 a new run marks earlier PENDING flags SUPERSEDED (never c
 
 ## Known limitations
 
-- Scheduled runs and deployment are not done yet (see Status).
+- The online dashboard has no password and the PO button is in dry run, until you decide to go live (see Deployment).
+- On the Hobby plan the scheduled run can start anywhere in the 02:xx UTC hour (07:30-08:29 IST).
 - Gemini sometimes returns no sources for a search; those answers are dropped, so a run finds roughly 4-9 leads.
 - Many news sites block automated readers, so about half of candidate leads are dropped for lack of a readable date.
 - There is only one stock snapshot, so past stockouts cannot be backtested.
