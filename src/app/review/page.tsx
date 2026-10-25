@@ -1,6 +1,7 @@
 import { CheckCheck, Hand, PauseCircle, ShoppingCart } from "lucide-react";
 import { AppShell } from "../_components/AppShell";
 import { FlagTable } from "../_components/FlagTable";
+import { PoActionBar } from "../_components/PoActionBar";
 import { RunControls } from "../_components/RunControls";
 import { loadBoard } from "@/lib/board";
 import { pickRows } from "@/lib/views";
@@ -67,6 +68,7 @@ export default async function ReviewPage() {
           </Group>
         </>
       )}
+      <PoActionBar stopped={ks.stopped} />
     </AppShell>
   );
 }

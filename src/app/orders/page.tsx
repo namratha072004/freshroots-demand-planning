@@ -1,6 +1,7 @@
 import { Boxes } from "lucide-react";
 import { AppShell } from "../_components/AppShell";
 import { FlagTable } from "../_components/FlagTable";
+import { PoActionBar } from "../_components/PoActionBar";
 import { SummaryStrip } from "../_components/SummaryStrip";
 import { loadBoard } from "@/lib/board";
 import { orderTotals, pickRows } from "@/lib/views";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /** Proposed orders: the ORDER_NOW flags that have not been rejected, and what they add up to. */
 export default async function OrdersPage() {
-  const { shell, festivalPct, rows, decided } = await loadBoard();
+  const { ks, shell, festivalPct, rows, decided } = await loadBoard();
   const orders = pickRows("orders", rows, decided);
   const { units, skus } = orderTotals(rows);
   const approved = orders.filter((r) => r.status === "APPROVED");
@@ -30,6 +31,7 @@ export default async function OrdersPage() {
       ) : (
         <div className="section"><FlagTable rows={orders} festivalPct={festivalPct} /></div>
       )}
+      <PoActionBar stopped={ks.stopped} />
     </AppShell>
   );
 }

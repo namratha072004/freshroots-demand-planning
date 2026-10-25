@@ -2434,3 +2434,67 @@ a.btn.primary:hover::after {
     padding-top: 0;
   }
 }
+
+/* ---------- Generate PO bar (fixed to the bottom of the review pages) ---------- */
+.pobar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 25;
+  margin-top: 22px;
+  background: var(--surface);
+  border: 1px solid var(--brand);
+  border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(20, 33, 26, 0.18);
+  animation: rise 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.pobar.done {
+  background: var(--ok-bg);
+  border-color: var(--ok);
+}
+.pobar-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  color: var(--ink);
+}
+.pobar-main > svg:first-child {
+  color: var(--brand);
+  flex: none;
+}
+.pobar.done .pobar-main > svg:first-child {
+  color: var(--ok-ink);
+}
+.pobar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  align-items: baseline;
+  font-size: 14.5px;
+}
+.pobar-lines {
+  color: var(--muted);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+.pobar-pop {
+  right: 0;
+  bottom: calc(100% + 10px);
+  top: auto;
+  transform-origin: bottom right;
+}
+.pobar-dry {
+  padding: 0 16px 12px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.pobar-dry summary {
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .pobar-main {
+    flex-wrap: wrap;
+  }
+}

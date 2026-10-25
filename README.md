@@ -110,6 +110,10 @@ The rules suggest a quantity and the planner has the last word. On every ORDER_N
 - The system's suggestion is never overwritten: `recommendations.quantity` keeps it, `approved_quantity` holds the planner's number, `adjustment_reason` / `adjustment_note` hold why, and every change is kept in `quantity_audit`.
 - Checks: whole number from 1 to 1,000,000; a change must come with a reason; an order above twice the suggestion asks for a second confirmation; only orders have a quantity. An approval with an edited quantity still counts as an approval in the kill switch.
 
+## Generate PO without leaving the page
+
+On **To review** and **Proposed orders**, a bar is pinned to the bottom of the page as soon as an order is approved: "N approved lines are ready for a draft PO", the lines and units, and a **Generate PO** button. It updates as more orders are approved or their quantities are edited, asks for confirmation (the wording says whether it is a dry run), creates the draft PO in Zoho with the approved quantities, and then stays visible with the PO number and an **Open in Zoho** link. It is blocked while the kill switch is stopped, and after a network failure it turns into "Check Zoho and finish", which never creates a second PO. The same button logic and safeguards as the Purchase orders page are used.
+
 ## Activity log
 
 `/logs` has two views:
