@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Freshroots Demand Planning (draft-only)
 
-## Getting Started
+Decision support for the Senior Demand Planner (Raghav) at Freshroots. It reads sales and stock files, applies
+Raghav's 5 rules in code, asks Gemini to explain the flags, shows a dashboard where Raghav approves or rejects each
+flag, and creates a **draft** purchase order in Zoho Inventory for the approved lines. Procurement adds the price and
+places the order inside Zoho. This system never places, issues, sends or approves a purchase order.
 
-First, run the development server:
+**Principles:** all numbers, flags and quantities come from deterministic code. The AI only writes text and is
+checked (it may quote only numbers the rules calculated). Cases outside the rules are marked NEEDS_RAGHAV and the
+system does not guess.
+
+## Status
+
+| Part | State |
+|---|---|
+| Data tables, CSV loader, one row per SKU, missing/stale checks | Built |
+| Rules engine (5 rules, A1-A5) | Built, unit-tested, matches the expected seed flags |
+| Run pipeline (manual "Run now" and `npm run run-planning`) | Built |
+| Gemini reasons, triage, sourced new-launch leads | Built |
+| Dashboard: Flag list and New launches tabs, login | Built |
+| Kill switch (alert 10%, stop 25%, 4 weeks, resume with note) | Built |
+| Zoho draft PO (one real draft PO verified in Zoho) | Built |
+| **Scheduled run (Vercel Cron, Mon + Thu 08:00 IST)** | **Not built yet** (no cron route, `CRON_SECRET` unused) |
+| **Deploy to Vercel** | **Not done yet** |
+
+## Setup
+
+Needs Node 20.9 or newer (developed on Node 24) and a Neon Postgres database.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local      # then fill in the values (see below)
+npm run migrate                 # creates the tables in Neon
+npm run dev                     # http://localhost:3000, open mode accepts any password
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Press **Run now** on the dashboard. A run loads the CSVs in `/data` into Neon, validates, applies the rules, saves
+the flags, then adds Gemini reasons and launch leads. A full run takes about 1-2 minutes (real web searches are slow).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | What it does |
+|---|---|
+| `npm run migrate` | Applies the SQL files in `/migrations` in order (safe to re-run) |
+| `npm run load-data` | Loads the 5 CSVs from `/data` into Neon and checks the row counts (4 / 15 / 240 / 15 / 24) |
+| `npm run run-planning` | Runs the planning pipeline from the command line |
+| `npm run zoho-sync` | Fetches Zoho item ids by SKU and stores the SKU-to-item mapping |
+| `npm test` | Unit tests |
+| `CONFIRM_WIPE=yes npx tsx scripts/check-po-flow.ts` | **Destructive.** Checks the draft-PO safeguards against the database with a pretend Zoho. Development database only |
 
-## Learn More
+## Environment variables
 
-To learn more about Next.js, take a look at the following resources:
+Secrets live only in environment variables (`.env.local` locally, never in git). See `.env.example`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Meaning |
+|---|---|
+| `DATABASE_URL` | Neon pooled connection string |
+| `ASOF_OVERRIDE` | "Today" for the stale-data and festival-month checks (default 2026-10-19, D1). The kill-switch window and launch-lead recency use the real clock, never this |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini access. Tested with `gemini-3.8-flash` |
+| `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`, `ZOHO_REFRESH_TOKEN`, `ZOHO_ORG_ID` | Zoho Self Client credentials and organisation |
+| `ZOHO_ACCOUNTS_URL`, `ZOHO_API_URL` | India data centre: `https://accounts.zoho.in`, `https://www.zohoapis.in` |
+| `ZOHO_DRY_RUN` | `true` = build and show the PO request but never create it. Default `false` |
+| `AUTH_MODE` | `open` (any password) or `password` (checks `DASHBOARD_PASSWORD`). Switching is this one setting and logs everyone out. In `password` mode with no password set, nobody can log in |
+| `DASHBOARD_PASSWORD` | Used when `AUTH_MODE=password` |
+| `CRON_SECRET` | Will protect the cron endpoint. Not used yet |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Configuration
 
-## Deploy on Vercel
+Every threshold is in one file, `src/config.ts`, each with a comment: rule thresholds, stale days, kill-switch
+levels (including `minDecisions`), Gemini settings, launch-search limits, Zoho vendor name and timeouts.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Assumptions to confirm with Raghav
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The case does not settle these, so these are provisional defaults (in `src/config.ts` and `src/lib/rules.ts`):
+
+- **A1.** "Average weekly sales" for weeks of cover is the 12-week average, and the 12 weeks include the latest 4.
+- **A2.** In a festival month (per `calendar`, using `ASOF_OVERRIDE`) the 25% uplift multiplies that average, **for weeks of cover only**. HIGH_DEMAND compares the last 4 weeks with the plain 12-week average (this is the only reading that matches the expected seed table).
+- **A3.** When several flags fire, ORDER_NOW wins over PAUSE_ORDER. With HIGH_DEMAND the quantity is 1.5x the standard. HIGH_DEMAND with healthy stock is an order flagged for review. HIGH_DEMAND together with OVERSTOCK_RISK is NEEDS_RAGHAV. (The brief's example "stock 1,600 gives PAUSE_ORDER" has HIGH_DEMAND firing too; A3 was followed.)
+- **A4.** Under 12 weeks of history, or missing inventory or master data, is NEEDS_RAGHAV.
+- **A5.** Cover exactly on a threshold is not flagged. The same is applied to the +20% HIGH_DEMAND line.
+
+Extra defaults added while building (also to confirm):
+
+- Perishable SKUs use 3-4 weeks of cover instead of 6-14, and HIGH_DEMAND still applies to them.
+- ORDER_NOW from stockout alone is 1x the standard quantity; fractional quantities round up.
+- Zero average sales (cover undefined) is NEEDS_RAGHAV.
+- Stale data (stock snapshot or latest sales week more than 7 days before `ASOF_OVERRIDE`) is shown as a warning on the flag and does not change the rule result.
+- Several stock locations for one SKU are summed.
+- Only ORDER_NOW lines go into a draft PO. PAUSE_ORDER approvals create nothing.
+- The AI's "needs Raghav" is only a badge. Those flags keep their buttons and their decisions count in the kill switch. Only the rules' own NEEDS_RAGHAV removes the buttons and the count.
+
+## Kill switch
+
+Rejection rate = rejected / (approved + rejected) over the last 4 weeks (real clock). NEEDS_RAGHAV, SUPERSEDED and
+undecided items never count. Alert at 10% or more, stop at 25% or more. Below `minDecisions` (20) decided items it
+shows "collecting data": the rate and the 10% alert still show, but it never stops. The check runs after each
+decision is saved and protects the next run: on a stop, scheduled and manual runs refuse, "Create draft PO" is blocked,
+and a banner explains. No owner or notification channel is defined (the brief leaves that open); the alert is shown on
+the dashboard only.
+
+**To reset (resume):** on the dashboard banner type a note and press **Resume**. The note is stored in
+`kill_switch_events`, and only decisions made after the resume count towards the next check. If the dashboard is not
+available, the same effect in SQL (only valid while the latest event is STOPPED):
+`INSERT INTO kill_switch_events (kind, note) VALUES ('RESUMED', 'why it is safe to resume');`
+
+**Demo:** lower `killSwitch.minDecisions` in `src/config.ts` to 4, reject 1 of 4 decided flags (25%) to see the stop,
+then restore it to 20.
+
+## Zoho Inventory
+
+- Create one vendor named as in `config.zoho.defaultVendorName` and import `zoho/items_import.csv` (15 items, no purchase price).
+- Scopes used at runtime: `ZohoInventory.purchaseorders.CREATE`, `ZohoInventory.purchaseorders.READ`, `ZohoInventory.items.READ`, `ZohoInventory.contacts.READ`. Nothing broader.
+- The code can only create a PO (Zoho creates it as a draft; the stored Zoho status is checked and a warning is shown if it is not "draft"). It has no call that issues, sends, submits or approves a PO, and a test scans the source for that.
+- One PO per batch of approved ORDER_NOW lines, all under the default vendor (D3). The batch is recorded with its Zoho id, so the same batch is never created twice. Each PO carries a reference number (`FR-...`); after a network failure the next click looks Zoho up by that number before creating anything.
+- Zoho shows the missing price as 0.
+
+## Gemini
+
+- Reasons and triage use JSON output with a low thinking level (typically 5-10 seconds for all flags, up to about 45 seconds when the network or Gemini is slow).
+- New-launch leads use Google Search. Asking for strict JSON made the model skip the search most of the time, so the search call asks a plain question and the list is read from the answer. Each lead needs a grounded source; the source page is read for its own publication date, and leads older than 180 days or without a readable date are dropped. Leads are unverified references: no demand estimate and no advice to stock.
+- If the AI step fails, the run still completes and flags appear without reasons.
+
+## Decisions from the brief
+
+D1 `ASOF_OVERRIDE`. D2 a new run marks earlier PENDING flags SUPERSEDED (never counted as rejections; the dashboard asks first). D3 one draft PO per batch, one default vendor. D4 login screen with `AUTH_MODE`. D5 Zoho is live, with `ZOHO_DRY_RUN`.
+
+## Known limitations
+
+- Scheduled runs and deployment are not done yet (see Status).
+- Gemini sometimes returns no sources for a search; those answers are dropped, so a run finds roughly 4-9 leads.
+- Many news sites block automated readers, so about half of candidate leads are dropped for lack of a readable date.
+- There is only one stock snapshot, so past stockouts cannot be backtested.
+- No price or supplier data exists, so the PO price stays blank.

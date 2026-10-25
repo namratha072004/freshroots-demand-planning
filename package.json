@@ -6,19 +6,32 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate": "tsx scripts/migrate.ts",
+    "load-data": "tsx scripts/load-data.ts",
+    "test": "vitest run",
+    "run-planning": "tsx scripts/run.ts",
+    "zoho-sync": "tsx scripts/zoho-sync.ts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "csv-parse": "^7.0.3",
     "next": "16.4.3",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.2",
+    "dotenv": "^18.0.9",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.0.5",
+    "ws": "^8.22.0"
   }
 }
