@@ -74,6 +74,14 @@ Secrets live only in environment variables (`.env.local` locally, never in git).
 - A run takes about 75 seconds on Vercel; the function limit is 300 seconds (Fluid compute).
 - Redeploy from this repo with `vercel deploy --prod`.
 
+## Design
+
+A dark forest sidebar with the last run shown as a pipeline, a row of headline numbers, and flag cards that show the two things the rules used: a weeks-of-cover meter against the safe zone and a 16-week sales sparkline (last 4 weeks highlighted, hover for the weekly value). The rejection rate is a meter with the 10% and 25% lines. Light and dark themes follow the system setting; it works on a phone.
+
+- Status is never colour alone: every chip has an icon and a label. Chip text contrast is at least 4.5:1 in light and dark, and the status colours were checked with a colour-vision separation tool (the red/green pair relies on its icons and labels).
+- Inspiration came from free sources: the open-source shadcn/ui and Tremor dashboard patterns and Dribbble dashboard searches. No artwork was copied.
+- Fonts: Plus Jakarta Sans and Geist Mono (SIL Open Font License, loaded with `next/font`). Icons: `lucide-react` (ISC licence).
+
 ## Configuration
 
 Every threshold is in one file, `src/config.ts`, each with a comment: rule thresholds, stale days, kill-switch

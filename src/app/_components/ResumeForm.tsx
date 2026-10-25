@@ -14,7 +14,7 @@ export function ResumeForm() {
         type="text"
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="Note: why is it safe to resume? (required, saved)"
+        placeholder="Why is it safe to resume? (required, saved)"
         aria-label="Resume note"
         style={{ flex: "1 1 280px" }}
       />

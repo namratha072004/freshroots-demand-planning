@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2, Play } from "lucide-react";
 import { useState, useTransition } from "react";
 import { runNow } from "../actions";
 
@@ -22,29 +23,29 @@ export function RunControls({ pendingCount, stopped }: { pendingCount: number; s
   }
 
   return (
-    <div>
+    <div className="popwrap">
       <button
         className="primary"
         disabled={pending || stopped}
         title={stopped ? "Blocked by the kill switch" : undefined}
-        onClick={() => (pendingCount > 0 ? setConfirming(true) : run(false))}>
-        {pending ? "Running… (1-2 minutes)" : "Run now"}
+        onClick={() => (pendingCount > 0 ? setConfirming(true) : run(false))}
+      >
+        {pending ? <Loader2 size={16} className="spin" /> : <Play size={15} fill="currentColor" />}
+        {pending ? "Running, 1-2 minutes…" : "Run now"}
       </button>
       {confirming && (
-        <div className="notice" style={{ marginTop: 10 }}>
-          <strong>{pendingCount} flags have no answer yet.</strong> Running again marks them SUPERSEDED. They are not
-          counted as rejections.
-          <div className="rejectbox">
-            <button className="primary" disabled={pending} onClick={() => run(true)}>
-              Run anyway
-            </button>
-            <button disabled={pending} onClick={() => setConfirming(false)}>
-              Cancel
-            </button>
+        <div className="card pop" role="dialog" aria-label="Confirm run">
+          <p>
+            <strong>{pendingCount} {pendingCount === 1 ? "flag has" : "flags have"} no answer yet.</strong> Running again marks {pendingCount === 1 ? "it" : "them"} SUPERSEDED.
+            They are not counted as rejections.
+          </p>
+          <div className="actions">
+            <button className="primary" disabled={pending} onClick={() => run(true)}>Run anyway</button>
+            <button disabled={pending} onClick={() => setConfirming(false)}>Cancel</button>
           </div>
         </div>
       )}
-      {message && <div className={message.error ? "error" : "meta"}>{message.text}</div>}
+      {message && !confirming && <div className="run-note" style={message.error ? { color: "var(--bad-ink)" } : undefined}>{message.text}</div>}
     </div>
   );
 }

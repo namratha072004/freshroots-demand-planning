@@ -14,6 +14,8 @@ export interface FlagRow {
   metrics: Metrics;
   dataIssues: string[];
   reason: string | null;
+  /** Units sold per week, oldest first, for the sparkline (the same series the rules used). */
+  weekly: { week: string; units: number }[];
   aiNeedsRaghav: boolean | null;
   aiTriageReason: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
@@ -55,12 +57,17 @@ export async function getDashboardData(): Promise<DashboardData> {
       metrics: r.metrics as Metrics,
       dataIssues: r.data_issues as string[],
       reason: r.reason as string | null,
+      weekly: [],
       aiNeedsRaghav: r.ai_needs_raghav as boolean | null,
       aiTriageReason: r.ai_triage_reason as string | null,
       status: r.status as FlagRow["status"],
       rejectionReason: r.rejection_reason as string | null,
     }))
     .sort((a, b) => ORDER[a.action] - ORDER[b.action] || a.skuId.localeCompare(b.skuId));
+
+  const weekly = await sql`SELECT sku_id, week, units_sold FROM weekly_sales
+    WHERE sku_id = ANY(${[...new Set(rows.map((r) => r.skuId))]}::text[]) ORDER BY sku_id, week`;
+  for (const r of rows) r.weekly = weekly.filter((w) => w.sku_id === r.skuId).map((w) => ({ week: w.week as string, units: w.units_sold as number }));
 
   const [{ n }] = await sql`SELECT count(*)::int AS n FROM recommendations WHERE status = 'PENDING' AND action <> 'NEEDS_RAGHAV'`;
   return {
