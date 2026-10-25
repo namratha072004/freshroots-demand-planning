@@ -1,11 +1,14 @@
-import { ExternalLink, History, KeyRound, LogOut, ReceiptText } from "lucide-react";
+import { cookies } from "next/headers";
+import { ExternalLink, History, KeyRound, LogOut, Palette, ReceiptText } from "lucide-react";
 import { logout } from "../actions";
 import { AppShell } from "../_components/AppShell";
+import { AppearancePicker } from "../_components/Appearance";
 import { PoModeToggle } from "../_components/PoModeToggle";
 import { SettingsForm, type GroupSpec } from "../_components/SettingsForm";
 import { GROUP_META, SETTING_DEFS, listAudit, loadSettingsView, type SettingGroup } from "@/lib/settings";
 import { getAuthMode } from "@/lib/auth";
 import { getShellData } from "@/lib/shell";
+import { MODE_COOKIE, THEME_COOKIE, parseMode, parseTheme } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +43,9 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: 
 export default async function SettingsPage() {
   const [shell, view, audit] = await Promise.all([getShellData(), loadSettingsView(), listAudit(12)]);
   const mode = getAuthMode();
+  const jar = await cookies();
+  const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
+  const colourMode = parseMode(jar.get(MODE_COOKIE)?.value);
 
   return (
     <AppShell
@@ -49,6 +55,12 @@ export default async function SettingsPage() {
       subtitle="Edit the rules and limits. Changes apply to the next run; flags already on the list keep the numbers they were calculated with."
     >
       <div className="settings-grid">
+        <section className="card settings-card" aria-label="Appearance">
+          <h2 className="settings-title"><Palette size={18} /> Appearance</h2>
+          <p className="muted settings-intro">Pick a colour theme and light or dark. It applies instantly and is remembered on this device. Status colours (order, pause, approved, rejected) stay the same in every theme so they always mean the same thing.</p>
+          <AppearancePicker initialTheme={theme} initialMode={colourMode} />
+        </section>
+
         <SettingsForm
           title="Raghav's rules (the rubric)"
           intro="These five rules decide every flag. Every number is applied by code, never by the AI. Each edit is recorded in the change history below."

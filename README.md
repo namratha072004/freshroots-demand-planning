@@ -84,6 +84,11 @@ Motion: cards rise in, KPI numbers count up, the sales line draws itself, the co
 - Inspiration came from free sources: the open-source shadcn/ui and Tremor dashboard patterns and Dribbble dashboard searches. No artwork was copied.
 - Fonts: Plus Jakarta Sans and Geist Mono (SIL Open Font License, loaded with `next/font`). Icons: `lucide-react` (ISC licence).
 
+## Clickable summary cards and colour themes
+
+- Every headline card opens the list behind it (`/?view=...`, shareable links). **To review** shows the flags waiting for a decision; **Proposed order quantity** shows the ORDER_NOW flags that have not been rejected (and their total); **Rejection rate** shows the rejected decisions in the kill-switch window, across runs, with the reason for each and a split by reason; **Draft POs in Zoho** jumps to the PO section. A filter bar (All flags, To review, Proposed order, Rejected, Approved) shows a count on each chip, and each count equals the length of its list (tested).
+- **Appearance:** five colour themes (Forest, Ocean, Grape, Rose, Graphite) and Light / Dark / Match my device, from the palette button in the header or the Settings page. The choice is kept in a cookie so the server renders it with no flash. Every text/background pair was checked for contrast in all ten theme-and-mode combinations; the status colours (order, pause, approved, rejected) are the same in every theme on purpose.
+
 ## Settings page
 
 `/settings` lets you edit Raghav's rubric without touching code: Rule 1 (high-demand threshold and reorder multiplier), Rule 2 (stockout line), Rule 3 (overstock line), Rule 4 (festival uplift), Rule 5 (perishable windows), the data checks (minimum history, stale days), the kill-switch levels, and the launch-search limits. It also switches the Create draft PO button between **Live** and **Dry run** (going live asks first) and has a **Go to the login page** button.

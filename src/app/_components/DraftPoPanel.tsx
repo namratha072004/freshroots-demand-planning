@@ -12,7 +12,7 @@ export async function DraftPoPanel({ stopped }: { stopped: boolean }) {
   const org = process.env.ZOHO_ORG_ID?.trim();
   const dry = await getZohoDryRun();
   return (
-    <section className="card po section" style={{ marginTop: 0 }} aria-label="Draft purchase order">
+    <section id="draft-po" className="card po section" style={{ marginTop: 0 }} aria-label="Draft purchase order">
       <div className="po-head">
         <FileCheck2 size={18} />
         <h2>Draft purchase order</h2>

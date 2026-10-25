@@ -30,7 +30,7 @@ function FlagChips({ r }: { r: FlagRow }) {
 }
 
 /** One flag as a card: identity and action on top, the two charts the rules used, the AI reason, then the decision. */
-export function FlagCard({ r, festivalPct }: { r: FlagRow; festivalPct: number }) {
+export function FlagCard({ r, festivalPct, showRun = false }: { r: FlagRow; festivalPct: number; showRun?: boolean }) {
   const m = r.metrics;
   const reasons = REJECTION_REASONS.map((value) => ({ value, label: REJECTION_LABELS[value] }));
   const decided = r.status !== "PENDING";
@@ -45,6 +45,8 @@ export function FlagCard({ r, festivalPct }: { r: FlagRow; festivalPct: number }
           <div className="flag-meta">
             <span className="sku-id">{r.skuId}</span>
             {r.category && <span>· {r.category}</span>}
+            {showRun && <span>· Run #{r.runId}</span>}
+            {showRun && r.decidedAt && <span>· decided {new Date(r.decidedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })} IST</span>}
           </div>
         </div>
         <FlagChips r={r} />

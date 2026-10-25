@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, Check, CircleDashed, Compass, ListChecks, LogOut, SlidersHorizontal, Sprout } from "lucide-react";
 import { logout } from "../actions";
 import type { ShellData, PipelineStep } from "@/lib/shell";
+import { AppearanceMenu } from "./Appearance";
 import { PoGlimpse } from "./PoGlimpse";
 
 function StepDot({ state }: { state: PipelineStep["state"] }) {
@@ -91,6 +92,7 @@ export function AppShell({
             {subtitle && <div className="page-sub">{subtitle}</div>}
           </div>
           <div className="head-actions">
+            <AppearanceMenu />
             <PoGlimpse pos={shell.pos} listUrl={shell.zohoListUrl} />
             {actions}
             <form action={logout}>
