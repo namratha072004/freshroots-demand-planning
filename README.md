@@ -67,7 +67,7 @@ Secrets live only in environment variables (`.env.local` locally, never in git).
 ## Deployment (Vercel)
 
 - Live at https://freshroots-demand-planning-nu.vercel.app (Vercel team `mesa-ai1`, Hobby plan). The 13 settings below are set as Vercel Production environment variables.
-- **Online settings differ from local on purpose:** `AUTH_MODE=open` (no dashboard password yet; anyone with the link can use the dashboard) and `ZOHO_DRY_RUN=true` (the Create draft PO button shows the request but creates nothing in Zoho). To go live: set `DASHBOARD_PASSWORD` and `AUTH_MODE=password`, and set `ZOHO_DRY_RUN=false`, in the Vercel project's environment variables, then redeploy.
+- **Online settings:** `AUTH_MODE=open` (no dashboard password yet, so anyone with the link can use the dashboard) and `ZOHO_DRY_RUN=false` (the Create draft PO button creates a real draft PO in Zoho; set it to `true` to make the button show the request without creating anything). Before wider use, set `DASHBOARD_PASSWORD` and `AUTH_MODE=password` in the Vercel project's environment variables and redeploy.
 - **Schedule:** `vercel.json` registers `/api/cron/run` at `30 2 * * 1,4` (UTC) = Monday and Thursday 08:00 IST. Vercel calls it with GET and `Authorization: Bearer <CRON_SECRET>`. Per Vercel's docs, Hobby cron timing is only precise within the hour (so the run can start any time from 07:30 to 08:29 IST), delivery is best effort with no retries, and a schedule can occasionally be delivered twice. The endpoint therefore skips a scheduled run if one already started in the last 30 minutes. A stopped kill switch refuses the scheduled run (HTTP 423).
 - The cron endpoint sits outside the dashboard login and protects itself with `CRON_SECRET` (fails closed if it is not set).
 - The CSVs in `/data` are bundled into the server build through `outputFileTracingIncludes` in `next.config.ts`.
@@ -144,7 +144,7 @@ D1 `ASOF_OVERRIDE`. D2 a new run marks earlier PENDING flags SUPERSEDED (never c
 
 ## Known limitations
 
-- The online dashboard has no password and the PO button is in dry run, until you decide to go live (see Deployment).
+- The online dashboard has no password while the PO button creates real drafts in Zoho, so anyone with the link can create a draft PO (see Deployment).
 - On the Hobby plan the scheduled run can start anywhere in the 02:xx UTC hour (07:30-08:29 IST).
 - Gemini sometimes returns no sources for a search; those answers are dropped, so a run finds roughly 4-9 leads.
 - Many news sites block automated readers, so about half of candidate leads are dropped for lack of a readable date.
