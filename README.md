@@ -76,7 +76,9 @@ Secrets live only in environment variables (`.env.local` locally, never in git).
 
 ## Design
 
-A dark forest sidebar with the last run shown as a pipeline, a row of headline numbers, and flag cards that show the two things the rules used: a weeks-of-cover meter against the safe zone and a 16-week sales sparkline (last 4 weeks highlighted, hover for the weekly value). The rejection rate is a meter with the 10% and 25% lines. Light and dark themes follow the system setting; it works on a phone.
+A dark forest sidebar with the last run shown as a pipeline, a row of headline numbers, and flag cards that show the two things the rules used: a weeks-of-cover meter against the safe zone and a 16-week sales sparkline (last 4 weeks highlighted, hover for the weekly value). The rejection rate is a meter with the 10% and 25% lines. Light and dark themes follow the system setting; it works on a phone. The header always shows a **Purchase orders** glimpse (latest draft POs with links to Zoho), **Run now**, and **Sign out**.
+
+Motion: cards rise in, KPI numbers count up, the sales line draws itself, the cover marker slides into place, buttons lift and sweep on hover, and the run button animates while a run is in progress. Everything respects the system "reduce motion" setting (the page then shows with no movement).
 
 - Status is never colour alone: every chip has an icon and a label. Chip text contrast is at least 4.5:1 in light and dark, and the status colours were checked with a colour-vision separation tool (the red/green pair relies on its icons and labels).
 - Inspiration came from free sources: the open-source shadcn/ui and Tremor dashboard patterns and Dribbble dashboard searches. No artwork was copied.

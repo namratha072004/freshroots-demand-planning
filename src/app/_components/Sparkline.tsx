@@ -45,6 +45,7 @@ export function Sparkline({ data, highlightLast = 4 }: { data: { week: string; u
       {/* The dot is HTML so it stays round while the line stretches with the card width. */}
       <span
         aria-hidden
+        className="spark-dot"
         style={{
           position: "absolute",
           left: `${(ax / W) * 100}%`,

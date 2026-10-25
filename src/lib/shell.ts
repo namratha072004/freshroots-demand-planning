@@ -1,6 +1,7 @@
 import { getSql } from "./db";
 import { getAuthMode } from "./auth";
 import { isDryRun } from "./zoho/client";
+import { listDraftPos } from "./zoho/draftPo";
 
 export type StepState = "done" | "warn" | "todo" | "off";
 export interface PipelineStep {
@@ -16,12 +17,16 @@ export interface ShellData {
   steps: PipelineStep[];
   authMode: "open" | "password";
   dryRun: boolean;
+  /** Latest draft POs created in Zoho, for the header glimpse. */
+  pos: { number: string; status: string; createdAt: string; lines: string; url: string | null }[];
+  /** Link to the Zoho purchase order list, when the organisation id is configured. */
+  zohoListUrl: string | null;
 }
 
 /** Everything the sidebar shows: counts for the nav badges, the last run as a pipeline, and the current modes. */
 export async function getShellData(): Promise<ShellData> {
   const sql = getSql();
-  const [counts, runs] = await Promise.all([
+  const [counts, runs, pos] = await Promise.all([
     sql`SELECT
       (SELECT count(*)::int FROM recommendations WHERE status = 'PENDING' AND action <> 'NEEDS_RAGHAV') AS flags,
       (SELECT count(*)::int FROM launch_leads WHERE mark IS NULL) AS leads,
@@ -30,7 +35,9 @@ export async function getShellData(): Promise<ShellData> {
       (SELECT count(*)::int FROM draft_purchase_orders WHERE status = 'created') AS pos`,
     sql`SELECT id, trigger, to_char(started_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon, HH24:MI') AS at, ai_status, launch_status, launch_stats, summary
         FROM runs WHERE status = 'completed' ORDER BY id DESC LIMIT 1`,
+    listDraftPos(3),
   ]);
+  const org = process.env.ZOHO_ORG_ID?.trim();
   const c = counts[0];
   const run = runs[0];
   const dryRun = isDryRun();
@@ -61,5 +68,15 @@ export async function getShellData(): Promise<ShellData> {
     steps,
     authMode: getAuthMode(),
     dryRun,
+    pos: pos
+      .filter((p) => p.status === "created" && p.zohoPoNumber)
+      .map((p) => ({
+        number: p.zohoPoNumber as string,
+        status: p.zohoStatus ?? "draft",
+        createdAt: p.createdAt,
+        lines: p.lines.map((l) => `${l.skuId} × ${l.quantity}`).join(", "),
+        url: p.zohoPoId && org ? `https://inventory.zoho.in/app/${org}#/purchaseorders/${p.zohoPoId}` : null,
+      })),
+    zohoListUrl: org ? `https://inventory.zoho.in/app/${org}#/purchaseorders` : null,
   };
 }

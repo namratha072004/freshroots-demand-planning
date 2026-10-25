@@ -12,7 +12,7 @@ export function RateMeter({ rate }: { rate: number | null }) {
     <div className="meter">
       <svg className="meter-svg" viewBox={`0 0 ${W} 26`} role="img" aria-label={`Rejection rate ${rate === null ? "not yet known" : (r * 100).toFixed(1) + "%"}; alert at ${alertRate * 100}%, stop at ${stopRate * 100}%`}>
         <rect x={0} y={9} width={W} height={8} rx={4} fill="var(--track)" />
-        {rate !== null && r > 0 && <rect x={0} y={9} width={Math.max(8, px(r))} height={8} rx={4} fill={fill} />}
+        {rate !== null && r > 0 && <rect className="meter-fill" x={0} y={9} width={Math.max(8, px(r))} height={8} rx={4} fill={fill} />}
         <line x1={px(alertRate)} x2={px(alertRate)} y1={4} y2={22} stroke="var(--warn)" strokeWidth="2" />
         <line x1={px(stopRate)} x2={px(stopRate)} y1={4} y2={22} stroke="var(--bad)" strokeWidth="2" />
       </svg>

@@ -25,7 +25,7 @@ export function RunControls({ pendingCount, stopped }: { pendingCount: number; s
   return (
     <div className="popwrap">
       <button
-        className="primary"
+        className={`primary ${pending ? "running" : ""}`}
         disabled={pending || stopped}
         title={stopped ? "Blocked by the kill switch" : undefined}
         onClick={() => (pendingCount > 0 ? setConfirming(true) : run(false))}
