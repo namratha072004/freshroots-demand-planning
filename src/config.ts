@@ -63,6 +63,10 @@ export const config = {
     /** Printed on every draft PO so procurement knows where it came from. */
     poNote: "DRAFT created by the Freshroots demand planning tool from lines approved by the demand planner. Price and supplier to be completed by procurement.",
   },
+  ui: {
+    /** The name shown in the activity log for actions taken on the dashboard. The dashboard has one login, so every dashboard action is attributed to this name. */
+    plannerName: "Raghav",
+  },
   launches: {
     /**
      * Hard cap on Gemini search calls per run, every call counted. A run makes one call per category, and retries a

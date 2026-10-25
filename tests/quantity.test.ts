@@ -45,3 +45,48 @@ describe("needsHighConfirm", () => {
     expect(needsHighConfirm(5000, 0)).toBe(false);
   });
 });
+
+import { ADJUSTMENT_LABELS, ADJUSTMENT_REASONS, MAX_NOTE_LENGTH } from "@/lib/adjustmentReasons";
+import { describeDelta, parseAdjustment } from "@/lib/quantity";
+
+describe("describeDelta (system suggested vs planner)", () => {
+  it("gives the unit and percent difference; negative means ordering less", () => {
+    expect(describeDelta(750, 300)).toEqual({ units: -450, percent: -60 });
+    expect(describeDelta(150, 200)).toEqual({ units: 50, percent: 33.3 });
+    expect(describeDelta(500, 500)).toEqual({ units: 0, percent: 0 });
+  });
+  it("does not divide by zero", () => {
+    expect(describeDelta(0, 10)).toEqual({ units: 10, percent: 0 });
+  });
+});
+
+describe("parseAdjustment: a change needs a number and a reason", () => {
+  it("accepts a valid quantity with a listed reason, and keeps the optional note", () => {
+    expect(parseAdjustment({ quantity: 300, reason: "stock_inbound", note: "  2 pallets arriving Friday " })).toEqual({
+      ok: true,
+      value: { quantity: 300, reason: "stock_inbound", note: "2 pallets arriving Friday" },
+    });
+    expect(parseAdjustment({ quantity: "300", reason: "my_judgment" })).toEqual({ ok: true, value: { quantity: 300, reason: "my_judgment", note: null } });
+  });
+  it("refuses a change with no reason or an unknown reason", () => {
+    for (const reason of [undefined, "", "because", "DEMAND_CHANGE", 7]) {
+      const r = parseAdjustment({ quantity: 300, reason });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.error).toMatch(/reason/i);
+    }
+  });
+  it("refuses a bad quantity even with a good reason", () => {
+    for (const quantity of [0, -3, 12.5, "x", "", null]) expect(parseAdjustment({ quantity, reason: "my_judgment" }).ok).toBe(false);
+  });
+  it("refuses a note that is too long", () => {
+    expect(parseAdjustment({ quantity: 5, reason: "my_judgment", note: "x".repeat(MAX_NOTE_LENGTH + 1) }).ok).toBe(false);
+    expect(parseAdjustment({ quantity: 5, reason: "my_judgment", note: "x".repeat(MAX_NOTE_LENGTH) }).ok).toBe(true);
+  });
+  it("refuses nothing-at-all input", () => {
+    expect(parseAdjustment(null).ok).toBe(false);
+    expect(parseAdjustment(undefined).ok).toBe(false);
+  });
+  it("every reason has a human label", () => {
+    for (const r of ADJUSTMENT_REASONS) expect(ADJUSTMENT_LABELS[r].length).toBeGreaterThan(5);
+  });
+});

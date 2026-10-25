@@ -1,4 +1,5 @@
 import { config } from "@/config";
+import { logActivity } from "./activity";
 import { getSql } from "./db";
 import { isDryRun } from "./zoho/client";
 
@@ -195,6 +196,13 @@ async function write(key: string, oldVal: unknown, newVal: unknown, isDefault: b
   else await sql`INSERT INTO app_settings (key, value, updated_at) VALUES (${key}, ${JSON.stringify(newVal)}::jsonb, now())
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
   await sql`INSERT INTO settings_audit (key, old_value, new_value) VALUES (${key}, ${JSON.stringify(oldVal)}::jsonb, ${JSON.stringify(newVal)}::jsonb)`;
+  const def = SETTING_DEFS.find((d) => d.key === key);
+  const show = (v: unknown) => (typeof v === "boolean" ? (v ? "Dry run" : "Live") : def?.percent ? `${Math.round((v as number) * 1000) / 10}%` : `${v}${def?.unit ? " " + def.unit : ""}`);
+  await logActivity({
+    kind: key === PO_MODE_KEY ? "po.mode" : isDefault ? "settings.reset" : "settings.changed",
+    summary: key === PO_MODE_KEY ? `Switched the Create draft PO button to ${show(newVal)}` : `${isDefault ? "Reset" : "Changed"} ${def?.label ?? key}: ${show(oldVal)} → ${show(newVal)}`,
+    details: { key, old: oldVal, new: newVal },
+  });
 }
 
 /** Save edited values (display units). Only values that actually changed are written; a value equal to its default removes the override. */

@@ -4,6 +4,7 @@ import { isFestivalMonth } from "./calendar";
 import { loadCsvFiles } from "./loadCsv";
 import { assertNotStopped } from "./killSwitch";
 import { runAiStep, type AiStepSummary } from "./ai/aiStep";
+import { logActivity } from "./activity";
 import { loadSettings } from "./settings";
 import { runLaunchStep, type LaunchStepSummary } from "./launches/step";
 import { evaluateSku, type RuleResult } from "./rules";
@@ -181,6 +182,13 @@ export async function runPlanning(trigger: Trigger): Promise<RunSummary> {
     const [[ai, aiMs], [launches, launchMs]] = await Promise.all([timed(() => runAiStep(runId)), timed(() => runLaunchStep(runId))]);
     summary.ai = ai;
     summary.launches = launches;
+    await logActivity({
+      actor: trigger === "manual" ? "planner" : "system",
+      kind: "run.completed",
+      summary: `${trigger === "manual" ? "Ran the analysis manually" : "Scheduled run"} (run #${runId}): ${summary.recommendations} flags, AI reasons ${ai.status}, ${launches.kept} launch leads`,
+      details: { trigger, flags: summary.recommendations, ai: ai.status, leads: launches.kept },
+      runId,
+    });
     summary.timingsMs = { loadAndRules: t1 - t0, save: t2 - t1, ai: aiMs, launches: launchMs };
     return summary;
   } catch (e) {

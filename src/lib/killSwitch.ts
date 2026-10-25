@@ -1,5 +1,6 @@
 import { getSql } from "./db";
 import { evaluateKillSwitch, type KillSwitchEvaluation } from "./killSwitchRules";
+import { logActivity } from "./activity";
 import { loadSettings } from "./settings";
 
 export class KillSwitchStoppedError extends Error {
@@ -70,6 +71,14 @@ export async function evaluateAndLatch(now: Date = new Date()): Promise<KillSwit
       SELECT 'STOPPED', ${e.approved}, ${e.rejected}, ${e.decided}, ${e.rate}
       WHERE coalesce((SELECT kind FROM kill_switch_events ORDER BY id DESC LIMIT 1), 'RESUMED') <> 'STOPPED'`;
     status = await getKillSwitchStatus(now);
+    if (status.stopped) {
+      await logActivity({
+        actor: "system",
+        kind: "killswitch.stopped",
+        summary: `Kill switch stopped runs and draft POs: ${e.rejected} of ${e.decided} decisions rejected (${e.rate === null ? "n/a" : (e.rate * 100).toFixed(1) + "%"})`,
+        details: { rate: e.rate, rejected: e.rejected, decided: e.decided },
+      });
+    }
   }
   return status;
 }

@@ -35,12 +35,16 @@ async function main() {
     const e = await mk("ZZ_T6", "ORDER_NOW", 200);   // invalid quantities
 
     console.log("== approve with the planner's quantity");
-    await approveRecommendation(a, 300);
+    await approveRecommendation(a, { quantity: 300, reason: "stock_inbound", note: "2 pallets arriving Friday" });
     let s = await state(a);
     check("recommendation kept (750), planner's number stored (300)", s.quantity === 750 && s.approved_quantity === 300 && s.status === "APPROVED", JSON.stringify(s));
     check("the edit is logged 750 -> 300", JSON.stringify(await audit(a)) === JSON.stringify([{ old_quantity: 750, new_quantity: 300 }]));
+    const [why] = await sql`SELECT adjustment_reason, adjustment_note FROM recommendations WHERE id = ${a}`;
+    check("the reason and note are stored with it", why.adjustment_reason === "stock_inbound" && why.adjustment_note === "2 pallets arriving Friday");
+    const [qa] = await sql`SELECT reason, note FROM quantity_audit WHERE recommendation_id = ${a}`;
+    check("and in the change history", qa.reason === "stock_inbound");
 
-    await approveRecommendation(b, 150);
+    await approveRecommendation(b, { quantity: 150, reason: "my_judgment" });
     s = await state(b);
     check("approving the recommended number is not an edit", s.approved_quantity === null && (await audit(b)).length === 0);
     await approveRecommendation(c);
@@ -53,38 +57,57 @@ async function main() {
     check("ZZ_T2 goes in at its recommendation", mine.find((l) => l.skuId === "ZZ_T2")?.quantity === 150);
 
     console.log("== change the quantity after approving, before any PO");
-    await setApprovedQuantity(c, 400);
+    await setApprovedQuantity(c, { quantity: 400, reason: "demand_change" });
     s = await state(c);
     check("edit after approval stored", s.approved_quantity === 400 && s.quantity === 500);
-    await setApprovedQuantity(c, 450);
+    await setApprovedQuantity(c, { quantity: 450, reason: "budget_limit", note: "cash is tight" });
     check("editing again works and every step is logged", JSON.stringify(await audit(c)) === JSON.stringify([{ old_quantity: 500, new_quantity: 400 }, { old_quantity: 400, new_quantity: 450 }]));
-    await setApprovedQuantity(c, 500);
+    await setApprovedQuantity(c, { quantity: 500, reason: "data_wrong" });
     check("setting it back to the recommendation clears the edit", (await state(c)).approved_quantity === null);
-    check("an unchanged value writes nothing", (await (async () => { const n = (await audit(c)).length; await setApprovedQuantity(c, 500); return (await audit(c)).length === n; })()));
+    check("an unchanged value writes nothing", (await (async () => { const n = (await audit(c)).length; await setApprovedQuantity(c, { quantity: 500, reason: "data_wrong" }); return (await audit(c)).length === n; })()));
 
     console.log("== once a draft PO carries the line it is locked");
     const [po] = await sql`INSERT INTO draft_purchase_orders (batch_key, reference_number, status, recommendation_ids, lines) VALUES ('zz-test', 'FR-ZZTEST', 'failed', ARRAY[${a}]::bigint[], '[]'::jsonb) RETURNING id`;
     poRow = Number(po.id);
     await sql`UPDATE recommendations SET draft_po_id = ${poRow} WHERE id = ${a}`;
-    check("changing a quantity already in a draft PO is refused", await fails(() => setApprovedQuantity(a, 999), /draft PO/i));
+    check("changing a quantity already in a draft PO is refused", await fails(() => setApprovedQuantity(a, { quantity: 999, reason: "my_judgment" }), /draft PO/i));
     check("and its number did not move", (await state(a)).approved_quantity === 300);
 
+    console.log("== a change must come with a reason");
+    check("an approval with a new quantity and no reason is refused", await fails(() => approveRecommendation(e, { quantity: 99 }), /reason/i));
+    check("an approval with an unknown reason is refused", await fails(() => approveRecommendation(e, { quantity: 99, reason: "because" }), /reason/i));
+    check("an edit after approval with no reason is refused", await fails(() => setApprovedQuantity(b, { quantity: 99 }), /reason/i));
+    check("the flag stayed pending / unchanged after those refusals", (await state(e)).status === "PENDING" && (await state(b)).approved_quantity === null);
+
+    await rejectRecommendation(d, "my_judgment");
+    console.log("== every action is in the activity log");
+    const logs = async (rid: number) => (await sql`SELECT kind, actor, summary, details FROM activity_log WHERE recommendation_id = ${rid} ORDER BY id`) as { kind: string; actor: string; summary: string; details: Record<string, unknown> }[];
+    const la = await logs(a);
+    check("approving with an edit logs one entry with both numbers, the delta and the reason", la.length === 1 && la[0].kind === "decision.approved" && la[0].actor === "planner" && la[0].details.suggested === 750 && la[0].details.ordered === 300 && la[0].details.delta_units === -450 && la[0].details.delta_percent === -60 && la[0].details.reason === "stock_inbound", la[0]?.summary);
+    check("the summary reads naturally", /Approved ZZ_T1 at 300 units instead of the suggested 750/.test(la[0].summary) && /Stock is already on the way/.test(la[0].summary));
+    const lb = await logs(b);
+    check("approving as suggested logs 'as suggested'", lb.length === 1 && /as suggested/.test(lb[0].summary));
+    const lc = await logs(c);
+    check("each later edit is logged as a quantity change (3 edits)", lc.filter((x) => x.kind === "quantity.adjusted").length === 3, String(lc.length));
+    check("a rejection is logged with its reason", (await logs(d)).some((x) => x.kind === "decision.rejected" && /my own judgment/i.test(x.summary)));
+    check("refused actions wrote no log entry", (await logs(e)).length === 0);
+
     console.log("== things that must be refused");
-    check("a pending flag cannot be edited before it is approved", await fails(() => setApprovedQuantity(e, 250), /only an approved order/i));
-    check("a pause order has no quantity", await fails(() => approveRecommendation(p, 100), /only an order/i));
+    check("a pending flag cannot be edited before it is approved", await fails(() => setApprovedQuantity(e, { quantity: 250, reason: "my_judgment" }), /only an approved order/i));
+    check("a pause order has no quantity", await fails(() => approveRecommendation(p, { quantity: 100, reason: "my_judgment" }), /only an order/i));
     for (const [bad, msg] of [[0, /at least 1/], [-4, /at least 1/], [12.5, /whole number/], ["abc", /number/], [2_000_000, /more than/]] as const) {
-      check(`approving with quantity ${JSON.stringify(bad)} is refused`, await fails(() => approveRecommendation(e, bad), msg));
+      check(`approving with quantity ${JSON.stringify(bad)} is refused`, await fails(() => approveRecommendation(e, { quantity: bad, reason: "my_judgment" }), msg));
     }
     check("a refused approval leaves the flag pending", (await state(e)).status === "PENDING");
-    await rejectRecommendation(d, "my_judgment");
-    check("a rejected order cannot have its quantity changed", await fails(() => setApprovedQuantity(d, 50), /only an approved order/i));
-    check("a flag can only be decided once", await fails(() => approveRecommendation(a, 100), /no longer be decided/i));
+    check("a rejected order cannot have its quantity changed", await fails(() => setApprovedQuantity(d, { quantity: 50, reason: "my_judgment" }), /only an approved order/i));
+    check("a flag can only be decided once", await fails(() => approveRecommendation(a, { quantity: 100, reason: "my_judgment" }), /no longer be decided/i));
   } finally {
     await sql`UPDATE recommendations SET draft_po_id = NULL WHERE run_id = ${runId}`;
     if (poRow) await sql`DELETE FROM draft_purchase_orders WHERE id = ${poRow}`;
     await sql`DELETE FROM runs WHERE id = ${runId}`; // recommendations and audit rows go with it
-    const left = await sql`SELECT (SELECT count(*)::int FROM recommendations WHERE sku_id LIKE 'ZZ_T%') AS recs, (SELECT count(*)::int FROM draft_purchase_orders WHERE batch_key = 'zz-test') AS pos`;
-    console.log(`cleanup: ${left[0].recs} test recommendations and ${left[0].pos} test POs left (both should be 0)`);
+    await sql`DELETE FROM activity_log WHERE sku_id LIKE 'ZZ_T%'`;
+    const left = await sql`SELECT (SELECT count(*)::int FROM recommendations WHERE sku_id LIKE 'ZZ_T%') AS recs, (SELECT count(*)::int FROM draft_purchase_orders WHERE batch_key = 'zz-test') AS pos, (SELECT count(*)::int FROM activity_log WHERE sku_id LIKE 'ZZ_T%') AS logs`;
+    console.log(`cleanup: ${left[0].recs} test recommendations, ${left[0].pos} test POs and ${left[0].logs} test log entries left (all should be 0)`);
   }
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

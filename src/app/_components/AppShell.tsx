@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Boxes, Check, CircleDashed, Compass, FileCheck2, LayoutDashboard, ListChecks, LogOut, OctagonX, SlidersHorizontal, Sprout } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Boxes, Check, CircleDashed, Compass, FileCheck2, LayoutDashboard, ListChecks, LogOut, OctagonX, ScrollText, SlidersHorizontal, Sprout } from "lucide-react";
 import { logout } from "../actions";
 import type { ShellData, PipelineStep } from "@/lib/shell";
 import { AppearanceMenu } from "./Appearance";
@@ -12,6 +12,7 @@ const NAV = [
   { id: "rejections", href: "/rejections", label: "Rejections", icon: OctagonX },
   { id: "pos", href: "/purchase-orders", label: "Purchase orders", icon: FileCheck2 },
   { id: "launches", href: "/launches", label: "New launches", icon: Compass },
+  { id: "logs", href: "/logs", label: "Activity log", icon: ScrollText },
   { id: "settings", href: "/settings", label: "Settings", icon: SlidersHorizontal },
 ] as const;
 
@@ -31,7 +32,7 @@ export function AppShell({
   shell,
   children,
 }: {
-  active: "overview" | "review" | "orders" | "rejections" | "pos" | "launches" | "settings";
+  active: "overview" | "review" | "orders" | "rejections" | "pos" | "launches" | "logs" | "settings";
   title: string;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;

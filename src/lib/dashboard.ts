@@ -18,6 +18,9 @@ export interface FlagRow {
   edited: boolean;
   /** A draft PO already carries this line, so its quantity is locked. */
   inPo: boolean;
+  /** Why the planner changed the quantity, when they did. */
+  adjustmentReason: string | null;
+  adjustmentNote: string | null;
   reviewRequired: boolean;
   needsRaghavReason: string | null;
   metrics: Metrics;
@@ -58,6 +61,8 @@ function toRows(recs: Rec[]): FlagRow[] {
     recommendedQuantity: r.recommended_quantity as number | null,
     edited: r.edited as boolean,
     inPo: r.draft_po_id !== null,
+    adjustmentReason: r.adjustment_reason as string | null,
+    adjustmentNote: r.adjustment_note as string | null,
     reviewRequired: r.review_required as boolean,
     needsRaghavReason: r.needs_raghav_reason as string | null,
     metrics: r.metrics as Metrics,
@@ -90,13 +95,13 @@ export async function getDashboardData(windowStart: Date): Promise<DashboardData
       ? Promise.resolve([] as Rec[])
       : sql`SELECT r.id, r.run_id, r.sku_id, coalesce(m.sku_name, r.sku_id) AS sku_name, coalesce(m.category, '') AS category,
           r.flags, r.action, coalesce(r.approved_quantity, r.quantity) AS quantity, r.quantity AS recommended_quantity,
-          (r.approved_quantity IS NOT NULL) AS edited, r.draft_po_id, r.review_required, r.needs_raghav_reason, r.metrics, r.data_issues,
+          (r.approved_quantity IS NOT NULL) AS edited, r.draft_po_id, r.adjustment_reason, r.adjustment_note, r.review_required, r.needs_raghav_reason, r.metrics, r.data_issues,
           r.reason, r.ai_needs_raghav, r.ai_triage_reason, r.status, r.rejection_reason, r.decided_at
         FROM recommendations r LEFT JOIN sku_master m ON m.sku_id = r.sku_id
         WHERE r.run_id = ${runs[0].id} AND r.status <> 'SUPERSEDED'`,
     sql`SELECT r.id, r.run_id, r.sku_id, coalesce(m.sku_name, r.sku_id) AS sku_name, coalesce(m.category, '') AS category,
           r.flags, r.action, coalesce(r.approved_quantity, r.quantity) AS quantity, r.quantity AS recommended_quantity,
-          (r.approved_quantity IS NOT NULL) AS edited, r.draft_po_id, r.review_required, r.needs_raghav_reason, r.metrics, r.data_issues,
+          (r.approved_quantity IS NOT NULL) AS edited, r.draft_po_id, r.adjustment_reason, r.adjustment_note, r.review_required, r.needs_raghav_reason, r.metrics, r.data_issues,
           r.reason, r.ai_needs_raghav, r.ai_triage_reason, r.status, r.rejection_reason, r.decided_at
         FROM recommendations r LEFT JOIN sku_master m ON m.sku_id = r.sku_id
         WHERE r.status IN ('APPROVED', 'REJECTED') AND r.action <> 'NEEDS_RAGHAV' AND r.decided_at >= ${windowStart.toISOString()}

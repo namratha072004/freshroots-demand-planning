@@ -1,3 +1,4 @@
+import { logActivity } from "./activity";
 import { getSql } from "./db";
 
 export type LeadMark = "interested" | "ignore";
@@ -55,6 +56,7 @@ export async function getLaunchesData(): Promise<LaunchesData> {
 export async function markLead(id: number, mark: unknown): Promise<void> {
   const m = parseLeadMark(mark);
   const sql = getSql();
-  const rows = await sql`UPDATE launch_leads SET mark = ${m}, marked_at = now() WHERE id = ${id} RETURNING id`;
+  const rows = await sql`UPDATE launch_leads SET mark = ${m}, marked_at = now() WHERE id = ${id} RETURNING title, category`;
   if (rows.length === 0) throw new Error("Lead not found");
+  await logActivity({ kind: "lead.marked", summary: `Marked launch lead "${rows[0].title}" as ${m}`, details: { mark: m, category: rows[0].category } });
 }

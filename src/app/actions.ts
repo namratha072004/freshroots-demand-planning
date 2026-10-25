@@ -8,6 +8,8 @@ import { createSessionToken, isValidSessionToken, passwordAccepted, SESSION_COOK
 import { approveRecommendation, rejectRecommendation, setApprovedQuantity } from "@/lib/decisions";
 import { runPlanning } from "@/lib/run";
 import { markLead } from "@/lib/leads";
+import { logActivity } from "@/lib/activity";
+import { config } from "@/config";
 import { resetGroup, saveEdits, setPoDryRun, type SettingGroup } from "@/lib/settings";
 import { createDraftPo, type CreateResult } from "@/lib/zoho/draftPo";
 import { assertNotStopped, evaluateAndLatch, resumeKillSwitch } from "@/lib/killSwitch";
@@ -35,18 +37,20 @@ export async function login(_prev: { error?: string } | undefined, formData: For
     maxAge: SESSION_MAX_AGE,
     path: "/",
   });
+  await logActivity({ kind: "session.login", summary: `${config.ui.plannerName} signed in` });
   redirect("/");
 }
 
 export async function logout() {
   (await cookies()).delete(SESSION_COOKIE);
+  await logActivity({ kind: "session.logout", summary: `${config.ui.plannerName} signed out` });
   redirect("/login");
 }
 
-export async function approve(id: number, quantity?: number): Promise<ActionResult> {
+export async function approve(id: number, adjustment?: { quantity: number; reason: string; note?: string }): Promise<ActionResult> {
   await requireAuth();
   try {
-    await approveRecommendation(id, quantity);
+    await approveRecommendation(id, adjustment);
     await evaluateAndLatch();
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Could not approve" };
@@ -98,6 +102,7 @@ export async function resume(note: string): Promise<ActionResult> {
   await requireAuth();
   try {
     await resumeKillSwitch(note);
+    await logActivity({ kind: "killswitch.resumed", summary: `Resumed the kill switch: ${note.trim()}`, details: { note: note.trim() } });
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Could not resume" };
   }
@@ -120,6 +125,10 @@ export async function markLaunchLead(id: number, mark: string): Promise<ActionRe
 export async function createDraftPoAction(): Promise<CreateResult> {
   await requireAuth();
   const r = await createDraftPo();
+  if (r.ok && r.mode === "created") await logActivity({ kind: "po.created", summary: `Created draft PO ${r.po.zohoPoNumber} in Zoho (${r.po.lines.map((l) => `${l.skuId} × ${l.quantity}`).join(", ")})`, details: { po: r.po.zohoPoNumber, zoho_status: r.po.zohoStatus, lines: r.po.lines } });
+  else if (r.ok && r.mode === "already_created") await logActivity({ kind: "po.rechecked", summary: `Checked Zoho and found draft PO ${r.po.zohoPoNumber} already created, so no second one was made`, details: { po: r.po.zohoPoNumber } });
+  else if (r.ok && r.mode === "dry_run") await logActivity({ kind: "po.dry_run", summary: `Dry run of a draft PO (${r.lines.map((l) => `${l.skuId} × ${l.quantity}`).join(", ")}); nothing was sent to Zoho`, details: { lines: r.lines } });
+  else if (!r.ok) await logActivity({ kind: "po.failed", summary: `Tried to create a draft PO: ${r.message}`, details: { error: r.message } });
   refreshAll();
   return r;
 }
@@ -167,10 +176,10 @@ export async function setPoModeAction(dryRun: boolean): Promise<SettingsResult> 
 }
 
 /** Change the quantity of an approved order before its draft PO is created. */
-export async function setQuantityAction(id: number, quantity: number): Promise<ActionResult> {
+export async function setQuantityAction(id: number, adjustment: { quantity: number; reason: string; note?: string }): Promise<ActionResult> {
   await requireAuth();
   try {
-    await setApprovedQuantity(id, quantity);
+    await setApprovedQuantity(id, adjustment);
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Could not change the quantity" };
   }

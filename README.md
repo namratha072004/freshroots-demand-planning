@@ -95,21 +95,29 @@ The dashboard is split so no single page is crowded. The **Overview** is one scr
 | Rejection rate | `/rejections` | Every rejection in the kill-switch window across runs, the reason given, when and from which run, and a split by reason. An Approved tab shows the approvals. |
 | Draft POs in Zoho | `/purchase-orders` | The approved lines ready for a draft PO, the Create draft PO button, and every draft PO created in Zoho. |
 | New launches | `/launches` | Sourced launch leads. |
+| Activity log | `/logs` | Time log of every action, and the Adjustments view (system vs you). |
 | Settings | `/settings` | Editable rules, kill switch, launch limits, PO live/dry run, appearance. |
 
 Each flag is a one-line row (product, action, stock cover, weekly sales, decision). Click a row to open its charts, flags and the AI reason. All pages refresh after a decision, run or settings change.
 
 ## Changing the order quantity (human in the loop)
 
-The rules recommend a quantity, and the planner has the last word. On any ORDER_NOW row the quantity is an editable box (shown as "Order [750]"). Change it and press **Approve** to approve a different number, for example 300 instead of 750. The row then shows "Recommended 750" beside your number.
+The rules suggest a quantity and the planner has the last word. On every ORDER_NOW row the system's suggestion ("Order 750") stays exactly as it is, with **Approve · Edit · Reject** on the right:
 
-- You can also change the quantity **after approving**, until a draft PO is created (type the new number and press Save or Enter). Once a draft PO carries the line it is locked, because Zoho already has that number.
-- The rules' recommendation is never overwritten: `recommendations.quantity` keeps it, `approved_quantity` holds the planner's number, and every change is logged in `quantity_audit` (old and new value, time).
-- The draft PO, the Proposed order quantity card, the orders page and "What to do next" all use the planner's number.
-- Checks: a whole number from 1 to 1,000,000; 0 is refused (reject the flag instead to order nothing); an order of more than twice the recommendation asks for a second confirmation; only orders have a quantity (not pause orders).
-- An approval with an edited quantity still counts as an approval in the kill switch.
-- The AI's written reason keeps the quantity the rules recommended, so it can differ from an edited order; the row shows both.
-- `npx tsx scripts/check-quantity-edit.ts` checks this against the database using temporary rows that it removes (it never touches real flags).
+- **Approve** approves exactly what the system suggested.
+- **Edit** opens a small panel: the system's number (read-only), **your quantity**, a live difference (for example −450, −60%), a **required reason** (demand is changing / stock already on the way / supplier minimum or availability / budget or cash limit / the data looks wrong / my own judgment) and an optional note. **Approve [your number]** then approves your quantity. The order, the draft PO and every total use your number.
+- You can change the quantity **after approving** too (Edit quantity, with a reason) until a draft PO is created. Once a draft PO carries the line it is locked, because Zoho already has the number.
+- The system's suggestion is never overwritten: `recommendations.quantity` keeps it, `approved_quantity` holds the planner's number, `adjustment_reason` / `adjustment_note` hold why, and every change is kept in `quantity_audit`.
+- Checks: whole number from 1 to 1,000,000; a change must come with a reason; an order above twice the suggestion asks for a second confirmation; only orders have a quantity. An approval with an edited quantity still counts as an approval in the kill switch.
+
+## Activity log
+
+`/logs` has two views:
+
+- **Activity**: a time log (IST, newest first, grouped by day) of every action: approvals (with the suggested and ordered numbers, the difference and the reason), rejections (with the reason), quantity changes, runs, draft POs (created, dry run, re-checked, failed), kill-switch stops and resumes, launch marks, settings changes, PO mode switches, sign in and sign out. Filter by kind and by who. Actions taken on the dashboard are shown as the planner (`config.ui.plannerName`, "Raghav"; the dashboard has one login, so every dashboard action is attributed to that name); things the app did on its own (scheduled runs, an automatic kill-switch stop) are shown as System. Existing history was filled in when the log was created. Logging never blocks the action it records.
+- **Adjustments (system vs you)**: where the planner's numbers differ from the suggestions: how often you agreed with the system, how many orders were adjusted (lowered and raised), the typical size of the change, the net units, a count by reason, each adjusted order (system number → yours, the difference, the reason and note, when) and a by-SKU rollup, so it is easy to see which products the rules get least right and why.
+
+`npx tsx scripts/check-quantity-edit.ts` checks all of this against the database using temporary rows (and temporary log entries) that it removes; it never touches real flags.
 
 ## Colour themes
 
