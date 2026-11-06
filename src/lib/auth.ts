@@ -4,8 +4,10 @@ export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 export type AuthMode = "open" | "password";
 
+/** Open only when it is unset or exactly "open". A typo such as "Password" must lock the site, not unlock it. */
 export function getAuthMode(): AuthMode {
-  return process.env.AUTH_MODE?.trim() === "password" ? "password" : "open";
+  const mode = process.env.AUTH_MODE?.trim().toLowerCase();
+  return !mode || mode === "open" ? "open" : "password";
 }
 
 /** Fails closed: in password mode with no DASHBOARD_PASSWORD set, nobody can log in. */

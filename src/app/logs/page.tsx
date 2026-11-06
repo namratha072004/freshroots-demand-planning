@@ -17,7 +17,7 @@ export default async function LogsPage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const tab = first(sp.tab) === "adjustments" ? "adjustments" : "activity";
   const g = first(sp.group);
-  const group = g && g in ACTIVITY_GROUPS ? (g as ActivityGroup) : null;
+  const group = g && Object.hasOwn(ACTIVITY_GROUPS, g) ? (g as ActivityGroup) : null;
   const who = first(sp.who);
   const actor: Actor | null = who === "planner" || who === "system" ? who : null;
   const limit = Math.min(Number(first(sp.limit)) || 60, 500);

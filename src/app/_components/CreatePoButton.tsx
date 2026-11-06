@@ -1,23 +1,24 @@
 "use client";
 
-import { FilePlus2, Loader2 } from "lucide-react";
+import { ExternalLink, FilePlus2, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
+import { outcomeFromResult } from "@/lib/poOutcome";
 import { createDraftPoAction } from "../actions";
 
-export function CreatePoButton({ lineCount, blocked, dryRun, recheck = false }: { lineCount: number; blocked: boolean; dryRun: boolean; recheck?: boolean }) {
+export function CreatePoButton({ lineCount, blocked, dryRun, orgUrl, recheck = false }: { lineCount: number; blocked: boolean; dryRun: boolean; orgUrl: string | null; recheck?: boolean }) {
   const [pending, start] = useTransition();
   const [confirming, setConfirming] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; error: boolean; code?: string } | null>(null);
+  const [msg, setMsg] = useState<{ text: string; error: boolean; code?: string; url?: string | null } | null>(null);
 
   const go = () =>
     start(async () => {
       setMsg(null);
-      const r = await createDraftPoAction();
+      const o = outcomeFromResult(await createDraftPoAction(), orgUrl);
       setConfirming(false);
-      if (!r.ok) setMsg({ text: r.message, error: true });
-      else if (r.mode === "dry_run") setMsg({ text: `Dry run: would create 1 draft PO with ${r.lines.length} lines. Nothing was sent to Zoho.`, error: false, code: JSON.stringify(r.payload, null, 2) });
-      else if (r.mode === "already_created") setMsg({ text: `This batch already has a draft PO (${r.po.zohoPoNumber}). No second one was created.`, error: false });
-      else setMsg({ text: `Draft PO ${r.po.zohoPoNumber} created in Zoho (id ${r.po.zohoPoId}, status ${r.po.zohoStatus}).${r.warning ? " " + r.warning : ""}`, error: !!r.warning });
+      if (o.kind === "error") setMsg({ text: o.message, error: true });
+      else if (o.kind === "dry") setMsg({ text: `Dry run: would create 1 draft PO with ${o.lines.length} lines. Nothing was sent to Zoho.`, error: false, code: o.request });
+      else if (o.kind === "existing") setMsg({ text: `This batch already has a draft PO (${o.number}). No second one was created.`, error: false, url: o.url });
+      else setMsg({ text: `Draft PO ${o.number} created in Zoho as a draft.${o.warning ? " " + o.warning : ""}`, error: !!o.warning, url: o.url });
     });
 
   return (
@@ -46,6 +47,11 @@ export function CreatePoButton({ lineCount, blocked, dryRun, recheck = false }: 
       {msg && (
         <div style={{ marginTop: 10 }}>
           <div className={msg.error ? "error" : "muted"} style={{ fontSize: 13.5 }}>{msg.text}</div>
+          {msg.url && (
+            <a className="btn" href={msg.url} target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, display: "inline-flex", gap: 6, alignItems: "center" }}>
+              Open in Zoho <ExternalLink size={14} />
+            </a>
+          )}
           {msg.code && <pre className="dry">{msg.code}</pre>}
         </div>
       )}

@@ -2,6 +2,7 @@ import { getSql } from "./db";
 import { getAuthMode } from "./auth";
 import { getZohoDryRun } from "./settings";
 import { listDraftPos } from "./zoho/draftPo";
+import { zohoOrgUrl, zohoPoUrl } from "./zoho/links";
 
 export type StepState = "done" | "warn" | "todo" | "off";
 export interface PipelineStep {
@@ -37,7 +38,7 @@ export async function getShellData(): Promise<ShellData> {
         FROM runs WHERE status = 'completed' ORDER BY id DESC LIMIT 1`,
     listDraftPos(3),
   ]);
-  const org = process.env.ZOHO_ORG_ID?.trim();
+  const orgUrl = zohoOrgUrl();
   const c = counts[0];
   const run = runs[0];
   const dryRun = await getZohoDryRun();
@@ -75,8 +76,8 @@ export async function getShellData(): Promise<ShellData> {
         status: p.zohoStatus ?? "draft",
         createdAt: p.createdAt,
         lines: p.lines.map((l) => `${l.skuId} × ${l.quantity}`).join(", "),
-        url: p.zohoPoId && org ? `https://inventory.zoho.in/app/${org}#/purchaseorders/${p.zohoPoId}` : null,
+        url: zohoPoUrl(orgUrl, p.zohoPoId),
       })),
-    zohoListUrl: org ? `https://inventory.zoho.in/app/${org}#/purchaseorders` : null,
+    zohoListUrl: orgUrl ? `${orgUrl}#/purchaseorders` : null,
   };
 }

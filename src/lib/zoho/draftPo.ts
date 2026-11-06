@@ -146,7 +146,10 @@ async function resumePending(zoho: ZohoClient, p: NonNullable<Awaited<ReturnType
     vendor,
     map,
   );
-  await sql`UPDATE draft_purchase_orders SET status = 'creating', updated_at = now() WHERE id = ${p.id}`;
+  // Claim the row in one step so two clicks at once cannot both send: only the one that flips it carries on.
+  const claimed = await sql`UPDATE draft_purchase_orders SET status = 'creating', updated_at = now()
+    WHERE id = ${p.id} AND (status = 'unknown' OR (status = 'creating' AND updated_at < now() - interval '120 seconds')) RETURNING id`;
+  if (claimed.length === 0) return { ok: false, message: "This draft PO is being created right now. Wait a moment and reload." };
   return sendAndRecord(zoho, p.id, payload);
 }
 
@@ -205,12 +208,20 @@ export async function createDraftPo(client?: ZohoClient): Promise<CreateResult> 
     }
 
     const rowId = Number(inserted[0].id);
-    const locked = await sql`UPDATE recommendations SET draft_po_id = ${rowId}
-      WHERE id = ANY(${batch.recommendationIds}::bigint[]) AND draft_po_id IS NULL AND status = 'APPROVED' RETURNING id`;
+    // Lock only lines whose quantity is still the one in this payload, so an edit made while we talked to Zoho
+    // for the vendor can never leave Zoho with a different number than the log shows.
+    const wanted = batch.lines.map((l) => ({ id: l.recommendationId, quantity: l.quantity }));
+    const older = batch.recommendationIds.filter((id) => !wanted.some((w) => w.id === id));
+    const locked = await sql`UPDATE recommendations r SET draft_po_id = ${rowId}
+      WHERE r.draft_po_id IS NULL AND r.status = 'APPROVED'
+        AND (r.id = ANY(${older}::bigint[])
+          OR EXISTS (SELECT 1 FROM jsonb_to_recordset(${JSON.stringify(wanted)}::jsonb) AS w(id bigint, quantity int)
+                     WHERE w.id = r.id AND w.quantity = coalesce(r.approved_quantity, r.quantity)))
+      RETURNING r.id`;
     if (locked.length !== batch.recommendationIds.length) {
       await sql`UPDATE recommendations SET draft_po_id = NULL WHERE draft_po_id = ${rowId}`;
-      await sql`UPDATE draft_purchase_orders SET status = 'failed', error = 'Some lines were taken by another draft PO', updated_at = now() WHERE id = ${rowId}`;
-      return { ok: false, message: "Some of these lines were just used by another draft PO. Reload and try again." };
+      await sql`UPDATE draft_purchase_orders SET status = 'failed', error = 'Some lines were changed or taken by another draft PO', updated_at = now() WHERE id = ${rowId}`;
+      return { ok: false, message: "Some approved lines were just changed or used by another draft PO. Reload and try again." };
     }
     return await sendAndRecord(zoho, rowId, payload);
   } catch (e) {

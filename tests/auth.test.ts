@@ -25,8 +25,15 @@ describe("login modes (D4)", () => {
     expect(passwordAccepted("")).toBe(false);
     expect(passwordAccepted("x")).toBe(false);
   });
-  it("unknown AUTH_MODE falls back to open", () => {
+  it("an unknown AUTH_MODE (a typo) locks the site instead of opening it", () => {
     process.env.AUTH_MODE = "weird";
+    delete process.env.DASHBOARD_PASSWORD;
+    expect(passwordAccepted("x")).toBe(false);
+  });
+  it("AUTH_MODE unset, or Open in any case, is open", () => {
+    delete process.env.AUTH_MODE;
+    expect(passwordAccepted("x")).toBe(true);
+    process.env.AUTH_MODE = " Open ";
     expect(passwordAccepted("x")).toBe(true);
   });
 });

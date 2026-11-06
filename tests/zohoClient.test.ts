@@ -63,6 +63,12 @@ describe("Zoho client", () => {
       expect(err.answered).toBe(false); // -> stored as 'unknown', lines stay locked, next click looks Zoho up first
     }
   });
+  it("a server error (5xx), a rate limit or an unreadable reply may come after Zoho saved the PO: not 'answered'", async () => {
+    for (const status of [500, 502, 503, 504, 429]) {
+      const { client } = fakeZoho(() => ({ status, json: { code: 1, message: "busy" } }));
+      expect(await client.createPurchaseOrder(PAYLOAD).catch((e) => e)).toMatchObject({ answered: false });
+    }
+  });
   it("an error answer from Zoho is 'answered' (nothing created)", async () => {
     const { client } = fakeZoho(() => ({ status: 400, json: { code: 1001, message: "Invalid value" } }));
     const err = await client.createPurchaseOrder(PAYLOAD).catch((e) => e);

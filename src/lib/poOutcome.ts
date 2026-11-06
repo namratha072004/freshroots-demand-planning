@@ -1,4 +1,5 @@
 import type { CreateResult } from "./zoho/draftPo";
+import { zohoPoUrl } from "./zoho/links";
 
 export type PoOutcome =
   | { kind: "created"; number: string; url: string | null; warning?: string }
@@ -8,7 +9,7 @@ export type PoOutcome =
 
 /** Turns the server's answer to "create a draft PO" into what the bar shows. `orgUrl` is the Zoho Inventory base for the organisation. */
 export function outcomeFromResult(r: CreateResult, orgUrl: string | null): PoOutcome {
-  const link = (id: string | null) => (id && orgUrl ? `${orgUrl}#/purchaseorders/${id}` : null);
+  const link = (id: string | null) => zohoPoUrl(orgUrl, id);
   if (!r.ok) return { kind: "error", message: r.message };
   if (r.mode === "dry_run") return { kind: "dry", lines: r.lines, request: JSON.stringify(r.payload, null, 2) };
   const number = r.po.zohoPoNumber ?? r.po.referenceNumber;

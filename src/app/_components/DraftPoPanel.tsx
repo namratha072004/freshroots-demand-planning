@@ -2,6 +2,7 @@ import { ExternalLink, FileCheck2 } from "lucide-react";
 import { config } from "@/config";
 import { getZohoDryRun } from "@/lib/settings";
 import { getPendingAttempt, getReadyBatch, listDraftPos } from "@/lib/zoho/draftPo";
+import { zohoOrgUrl, zohoPoUrl } from "@/lib/zoho/links";
 import { CreatePoButton } from "./CreatePoButton";
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
@@ -9,7 +10,7 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: 
 /** Draft purchase order: the lines ready to go, the button, and the POs already created in Zoho. */
 export async function DraftPoPanel({ stopped }: { stopped: boolean }) {
   const [batch, pos, pending] = await Promise.all([getReadyBatch(), listDraftPos(), getPendingAttempt()]);
-  const org = process.env.ZOHO_ORG_ID?.trim();
+  const orgUrl = zohoOrgUrl();
   const dry = await getZohoDryRun();
   return (
     <section id="draft-po" className="card po" aria-label="Draft purchase order">
@@ -25,7 +26,7 @@ export async function DraftPoPanel({ stopped }: { stopped: boolean }) {
             An earlier draft PO ({pending.referenceNumber}: {pending.lines.map((l) => `${l.skuId} × ${l.quantity}`).join(", ")}) did not finish, and it is not known whether Zoho created it.
           </div>
           <div className="muted" style={{ fontSize: 13.5 }}>The button checks Zoho first and creates the PO only if Zoho does not already have it, so it can never be created twice.</div>
-          <CreatePoButton lineCount={pending.lines.length} blocked={stopped} dryRun={dry} recheck />
+          <CreatePoButton lineCount={pending.lines.length} blocked={stopped} dryRun={dry} orgUrl={orgUrl} recheck />
         </>
       ) : batch ? (
         <>
@@ -37,7 +38,7 @@ export async function DraftPoPanel({ stopped }: { stopped: boolean }) {
           <div className="muted" style={{ fontSize: 13.5 }}>
             One draft PO in Zoho Inventory under &ldquo;{config.zoho.defaultVendorName}&rdquo;. SKU and quantity only, no price. It stays a draft until procurement adds the price and places the order in Zoho.
           </div>
-          <CreatePoButton lineCount={batch.lines.length} blocked={stopped} dryRun={dry} />
+          <CreatePoButton lineCount={batch.lines.length} blocked={stopped} dryRun={dry} orgUrl={orgUrl} />
         </>
       ) : (
         <div className="muted" style={{ marginTop: 8, fontSize: 14 }}>No approved ORDER_NOW lines are waiting. Approve flags below, then create the draft PO here.</div>
@@ -59,8 +60,8 @@ export async function DraftPoPanel({ stopped }: { stopped: boolean }) {
               <span className={`chip ${p.status === "created" && !p.error ? "ok" : p.status === "failed" ? "bad" : "warn"}`}>
                 {p.status === "created" ? `Zoho: ${p.zohoStatus ?? "?"}` : p.status === "unknown" ? "Needs a re-check" : p.status}
               </span>
-              {p.zohoPoId && org ? (
-                <a href={`https://inventory.zoho.in/app/${org}#/purchaseorders/${p.zohoPoId}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", gap: 5, alignItems: "center" }}>
+              {zohoPoUrl(orgUrl, p.zohoPoId) ? (
+                <a href={zohoPoUrl(orgUrl, p.zohoPoId)!} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", gap: 5, alignItems: "center" }}>
                   Open in Zoho <ExternalLink size={14} />
                 </a>
               ) : <span />}

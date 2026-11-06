@@ -118,7 +118,10 @@ export class ZohoClient {
     }
     const json = (await res.json().catch(() => null)) as ({ code?: number; message?: string } & Record<string, unknown>) | null;
     if (!res.ok || !json || (typeof json.code === "number" && json.code !== 0)) {
-      throw new ZohoError(`Zoho said: ${json?.message ?? `HTTP ${res.status}`}${json?.code !== undefined ? ` (code ${json.code})` : ""}`, true, res.status);
+      // Only a readable error from Zoho itself proves nothing was created. A server error (5xx), a rate limit,
+      // or a reply we could not read may come after Zoho already saved the PO, so those count as "not answered".
+      const proven = !!json && res.status < 500 && res.status !== 429;
+      throw new ZohoError(`Zoho said: ${json?.message ?? `HTTP ${res.status}`}${json?.code !== undefined ? ` (code ${json.code})` : ""}`, proven, res.status);
     }
     return json as T;
   }
